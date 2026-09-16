@@ -1,1 +1,50 @@
+# Virtual environment
+.venv/
 .venv
+venv/
+ENV/
+
+# Environment variables (contains secrets)
+.env
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.mypy_cache/
+.pytest_cache
+.hypothesis/
+.coverage
+htmlcov/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+edai3.db
+
+# Vector DB
+chroma_db/
+chroma.sqlite3
+
+# Uploads (user PDFs)
+uploads/
+uploads/*
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
