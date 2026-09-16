@@ -12,7 +12,7 @@ from app.config import settings
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="EDAI3 - RAG Educational Content Generator", version="1.0.0")
+app = FastAPI(title="RAG-Based Educational Content Generator", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -32,7 +32,7 @@ if os.path.exists(settings.UPLOAD_DIR):
 
 @app.get("/")
 def root():
-    return {"status": "ok", "message": "EDAI3 RAG API running", "docs": "/docs"}
+    return {"status": "ok", "message": "RAG-Based Educational Content Generator API running", "docs": "/docs"}
 
 @app.get("/health")
 def health():

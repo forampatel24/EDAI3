@@ -1,4 +1,4 @@
-# EDAI3 - Curriculum-Grounded RAG
+# RAG-Based Educational Content Generator — Curriculum-Grounded RAG (POC)
 
 ## Run Backend
 ```

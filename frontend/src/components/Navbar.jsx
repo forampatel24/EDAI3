@@ -7,7 +7,7 @@ export default function Navbar() {
   const handleLogout = () => { logout(); navigate('/login') }
   return (
     <nav style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 24px', background:'#1a237e', color:'white' }}>
-      <Link to="/" style={{ color:'white', textDecoration:'none', fontWeight:700, fontSize:20 }}>📚 EDAI3 RAG</Link>
+      <Link to="/" style={{ color:'white', textDecoration:'none', fontWeight:700, fontSize:16 }}>📚 RAG-Based Educational Content Generator</Link>
       <div style={{ display:'flex', gap:16, alignItems:'center' }}>
         {user ? (
           <>
