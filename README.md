@@ -22,7 +22,7 @@ App: http://localhost:5173
 3. Generate: Prompt + difficulty -> 7-section output with citations + retrieved chunks + grounded validator
 
 ## Env
-Set OPENAI_API_KEY or GEMINI_API_KEY or GROQ_API_KEY in backend/.env and LLM_PROVIDER accordingly. Without key, mock grounded generation is used.
+Set GEMINI_API_KEY or GROQ_API_KEY (or OPENAI_API_KEY as fallback) in backend/.env and set LLM_PROVIDER=gemini|groq accordingly. Default is gemini. Without key, mock grounded generation is used.
 
 ## Tech
 FastAPI, SQLite, JWT, ChromaDB, MiniLM embeddings, PyMuPDF, React Vite, React Router, Axios

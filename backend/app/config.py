@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = "./uploads"
     CHROMA_DIR: str = "./chroma_db"
     # LLM
-    LLM_PROVIDER: str = "openai"  # openai | gemini | groq
+    LLM_PROVIDER: str = "gemini"  # gemini | groq | openai
     OPENAI_API_KEY: str = ""
     GEMINI_API_KEY: str = ""
     GROQ_API_KEY: str = ""
