@@ -65,16 +65,31 @@ def call_gemini(system_prompt: str, user_prompt: str):
 def call_groq(system_prompt: str, user_prompt: str):
     from openai import OpenAI
     client = OpenAI(api_key=settings.GROQ_API_KEY, base_url="https://api.groq.com/openai/v1")
-    resp = client.chat.completions.create(
-        model=settings.GROQ_MODEL,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
-        ],
-        temperature=0.2,
-        response_format={"type": "json_object"}
-    )
-    return resp.choices[0].message.content
+    # gpt-oss-20b fails with response_format json_object (400 json_validate_failed), generate plain JSON via prompt
+    try:
+        resp = client.chat.completions.create(
+            model=settings.GROQ_MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.2,
+            response_format={"type": "json_object"}
+        )
+        return resp.choices[0].message.content
+    except Exception as e:
+        # fallback without json_object flag (some Groq models don't support it)
+        if "json_validate_failed" in str(e) or "response_format" in str(e):
+            resp = client.chat.completions.create(
+                model=settings.GROQ_MODEL,
+                messages=[
+                    {"role": "system", "content": system_prompt + "\n\nReturn ONLY valid JSON, no markdown."},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=0.2
+            )
+            return resp.choices[0].message.content
+        raise
 
 def generate_content(query: str, chunks: list, difficulty: str = "medium", class_level: str = "Class 11"):
     if not chunks:
