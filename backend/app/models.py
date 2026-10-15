@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Float, Boolean
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from .database import Base
@@ -40,3 +40,20 @@ class Document(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     collection = relationship("Collection", back_populates="documents")
+
+
+class WorkspaceItem(Base):
+    """Phase 2: teacher-saved lesson/assessment material (editable, publishable in Phase 3)."""
+    __tablename__ = "workspace_items"
+    id = Column(Integer, primary_key=True, index=True)
+    teacher_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    collection_id = Column(Integer, ForeignKey("collections.id"), nullable=False)
+    kind = Column(String, nullable=False)  # lesson_plan | quiz | question_paper | activity | explanation | custom
+    title = Column(String, nullable=False)
+    params_json = Column(Text, nullable=False, default="{}")
+    content_json = Column(Text, nullable=False, default="{}")
+    status = Column(String, nullable=False, default="draft")  # draft | ready (publishable in Phase 3)
+    abstained = Column(Boolean, nullable=False, default=False)
+    evidence_score = Column(Float, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

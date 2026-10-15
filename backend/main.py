@@ -4,10 +4,11 @@ from fastapi.staticfiles import StaticFiles
 import os
 
 from app.database import Base, engine
-from app.models import User, Collection, Document
+from app.models import User, Collection, Document, WorkspaceItem
 from app.routers import auth as auth_router
 from app.routers import collections as collections_router
 from app.routers import generation as gen_router
+from app.routers import workspace as workspace_router
 from app.config import settings
 
 Base.metadata.create_all(bind=engine)
@@ -25,6 +26,7 @@ app.add_middleware(
 app.include_router(auth_router.router)
 app.include_router(collections_router.router)
 app.include_router(gen_router.router)
+app.include_router(workspace_router.router)
 
 # serve uploads for teacher preview only (protected ideally, but open for demo with token check on frontend)
 if os.path.exists(settings.UPLOAD_DIR):

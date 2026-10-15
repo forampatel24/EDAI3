@@ -40,11 +40,15 @@ export default function GenerateView({ collections, defaultCollectionId }) {
       {error && <div style={{ marginTop:12, color:'red', background:'#ffebee', padding:10, borderRadius:6 }}>{error}</div>}
       {result && (
         <div style={{ marginTop:20 }}>
-          {result.warning && <div style={{ background:'#fff3e0', padding:10, borderRadius:6, marginBottom:12, border:'1px solid #ffb74d' }}>⚠️ {result.warning}</div>}
-          <div style={{ display:'flex', gap:8, marginBottom:8 }}>
+          {result.abstained && <div style={{ background:'#e3f2fd', padding:10, borderRadius:6, marginBottom:12, border:'1px solid #64b5f6' }}>🛑 Not generated — insufficient curriculum evidence. {result.warning}</div>}
+          {!result.abstained && result.warning && <div style={{ background:'#fff3e0', padding:10, borderRadius:6, marginBottom:12, border:'1px solid #ffb74d' }}>⚠️ {result.warning}</div>}
+          <div style={{ display:'flex', gap:8, marginBottom:8, flexWrap:'wrap' }}>
             <span style={{ background: result.grounded ? '#e8f5e9' : '#ffebee', padding:'4px 8px', borderRadius:6, fontSize:12 }}>{result.grounded ? '✅ Grounded' : '⚠️ Ungrounded'}</span>
             <span style={{ fontSize:12, color:'#666' }}>{result.citations.length} citations • {result.retrieved_chunks.length} chunks retrieved</span>
+            {result.evidence_status && <span style={{ background: result.evidence_status==='sufficient' ? '#e8f5e9' : '#ffebee', padding:'4px 8px', borderRadius:6, fontSize:12 }}>Evidence: {result.evidence_status}{result.evidence_score!=null ? ` (${result.evidence_score.toFixed(2)})` : ''}{result.repair_used ? ' • repaired' : ''}</span>}
           </div>
+          {result.alignment_warning && <div style={{ background:'#f3e5f5', padding:10, borderRadius:6, marginBottom:12, border:'1px solid #ce93d8', fontSize:13 }}>📐 {result.alignment_warning}</div>}
+          {result.citation_issues && result.citation_issues.length>0 && <div style={{ background:'#ffebee', padding:10, borderRadius:6, marginBottom:12, border:'1px solid #e57373', fontSize:13 }}>📎 Citation check: {result.citation_issues.join(' ')}</div>}
 
           <Section title="📖 Explanation" content={result.explanation} />
           <ListSection title="🔑 Key Concepts" items={result.key_concepts} />

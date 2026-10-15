@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import api from '../api'
 import GenerateView from '../components/GenerateView'
+import TeacherWorkspace from '../components/TeacherWorkspace'
 
 export default function TeacherDashboard() {
   const [collections, setCollections] = useState([])
@@ -114,6 +115,8 @@ export default function TeacherDashboard() {
           }
         </div>
       )}
+
+      <TeacherWorkspace myCollections={myCollections} />
 
       <GenerateView collections={collections} defaultCollectionId={selected?.id} />
 

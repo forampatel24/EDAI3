@@ -7,9 +7,9 @@ from ..auth import get_current_user, require_role
 from ..config import settings
 from ..services.ingestion import extract_text, better_chunk
 from ..services.embeddings import get_or_create_collection, embed_texts
-from ..services.retrieval import retrieve
+from ..services.evidence import retrieve_with_repair, abstain_response
 from ..services.generation import generate_content
-from ..services.validator import validate_grounding
+from ..services.validator import validate_grounding, validate_citations, check_alignment
 from ..schemas import GenerateRequest, GenerateResponse
 
 router = APIRouter(tags=["generation"])
@@ -69,19 +69,42 @@ def generate(req: GenerateRequest, db: Session = Depends(get_db), current_user: 
     col = db.query(Collection).filter(Collection.id == req.collection_id).first()
     if not col:
         raise HTTPException(status_code=404, detail="Collection not found")
-    # retrieval
-    chunks = retrieve(col.chroma_collection_name, req.prompt, top_k=5)
-    # class_level for prompt
     class_level = col.class_level or "Class 11"
+    # Phase 1: evidence-gated retrieval (gate -> repair -> re-gate). No LLM call when insufficient.
+    chunks, ev = retrieve_with_repair(col.chroma_collection_name, req.prompt, top_k=5)
+    retrieved = [{"text": c["text"], "metadata": c["metadata"], "score": c["score"]} for c in chunks]
+    if not ev["sufficient"]:
+        data = abstain_response(req.prompt, ev, class_level=class_level)
+        return GenerateResponse(
+            explanation=data.get("explanation",""),
+            key_concepts=[], worked_examples=[], mcqs=[],
+            descriptive_questions=[], quiz=[],
+            revision_notes=data.get("revision_notes",""),
+            citations=[], retrieved_chunks=retrieved,
+            grounded=False, warning=data.get("warning"),
+            abstained=True, evidence_score=ev["evidence_score"],
+            evidence_status="insufficient", repair_used=ev["repaired"],
+            citation_issues=None, alignment_warning=None,
+        )
     data = generate_content(req.prompt, chunks, difficulty=req.difficulty, class_level=class_level)
     grounded, warning = validate_grounding(data, chunks)
+    # Phase 1: strong citation + alignment checks (informational warnings)
+    citation_issues = validate_citations(data, chunks)
+    alignment_warning = check_alignment(
+        req.prompt, chunks,
+        subject=col.subject, class_level=class_level,
+    )
     # add warning if needed
     if warning and not data.get("warning"):
         data["warning"] = warning
-    # prepare response
+    extra_warnings = []
+    if citation_issues:
+        extra_warnings.append("Citation issue: " + "; ".join(citation_issues[:2]))
+    if alignment_warning:
+        extra_warnings.append(alignment_warning)
+    if extra_warnings:
+        data["warning"] = ((data.get("warning") or "") + " | " + " | ".join(extra_warnings)).strip(" |")
     citations = data.get("citations", [])
-    # ensure retrieved_chunks format
-    retrieved = [{"text": c["text"], "metadata": c["metadata"], "score": c["score"]} for c in chunks]
     return GenerateResponse(
         explanation=data.get("explanation",""),
         key_concepts=data.get("key_concepts",[]),
@@ -93,7 +116,11 @@ def generate(req: GenerateRequest, db: Session = Depends(get_db), current_user: 
         citations=citations,
         retrieved_chunks=retrieved,
         grounded=grounded,
-        warning=data.get("warning")
+        warning=data.get("warning"),
+        abstained=False, evidence_score=ev["evidence_score"],
+        evidence_status="sufficient", repair_used=ev["repaired"],
+        citation_issues=citation_issues or None,
+        alignment_warning=alignment_warning,
     )
 
 @router.get("/catalog")
