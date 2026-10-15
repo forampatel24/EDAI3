@@ -9,7 +9,7 @@ from ..auth import require_role
 from ..services.evidence import retrieve_with_repair, abstain_response
 from ..services.workspace import KINDS, generate_workspace_content
 from ..services.validator import validate_citations, check_alignment
-from ..schemas import WorkspaceGenerateRequest, WorkspaceItemOut, WorkspaceUpdateRequest
+from ..schemas import WorkspaceGenerateRequest, WorkspaceItemOut, WorkspaceUpdateRequest, WorkspacePublishRequest
 
 router = APIRouter(prefix="/workspace", tags=["workspace"])
 
@@ -153,14 +153,58 @@ def workspace_delete(item_id: int, db: Session = Depends(get_db), current_user: 
 
 
 @router.post("/{item_id}/publish")
-def workspace_publish(item_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role("teacher"))):
-    """Phase 3 hook: mark ready for classroom publishing (classroom lands in Phase 3)."""
+def workspace_publish(
+    item_id: int, payload: WorkspacePublishRequest = None,
+    db: Session = Depends(get_db), current_user: User = Depends(require_role("teacher")),
+):
+    """Phase 3: mark ready, or publish directly into a classroom as assignment/quiz."""
+    from ..models import Classroom, Assignment, Quiz
+    from ..services.classroom import workspace_to_quiz_questions
     it = db.query(WorkspaceItem).filter(
         WorkspaceItem.id == item_id, WorkspaceItem.teacher_id == current_user.id
     ).first()
     if not it:
         raise HTTPException(status_code=404, detail="Workspace item not found")
+    if it.abstained:
+        raise HTTPException(status_code=400, detail="Cannot publish abstained content (insufficient evidence)")
+    target = (payload.target if payload and payload.target else "none").lower()
+    classroom_id = payload.classroom_id if payload else None
+    if target in ("assignment", "quiz"):
+        if not classroom_id:
+            raise HTTPException(status_code=400, detail="classroom_id required to publish")
+        room = db.query(Classroom).filter(
+            Classroom.id == classroom_id, Classroom.teacher_id == current_user.id
+        ).first()
+        if not room:
+            raise HTTPException(status_code=404, detail="Classroom not found or not owned")
+        content = json.loads(it.content_json or "{}")
+        if target == "assignment":
+            intro = content.get("introduction") or content.get("explanation") or content.get("content") or ""
+            a = Assignment(
+                classroom_id=room.id, teacher_id=current_user.id, title=it.title,
+                description=str(intro)[:500], instructions="Generated from Teacher Workspace.",
+                source_workspace_item_id=it.id,
+            )
+            db.add(a)
+            it.status = "published"
+            db.commit()
+            return {"detail": f"Published as assignment in {room.name}.", "item_id": it.id,
+                    "status": it.status, "assignment_id": a.id, "classroom_id": room.id}
+        questions = workspace_to_quiz_questions(content)
+        if not questions:
+            raise HTTPException(status_code=400, detail="No questions found in this workspace item to publish as quiz")
+        params = json.loads(it.params_json or "{}")
+        q = Quiz(
+            classroom_id=room.id, teacher_id=current_user.id, title=it.title,
+            topic=params.get("topic"), duration_minutes=params.get("duration_minutes"),
+            questions_json=json.dumps(questions), source_workspace_item_id=it.id,
+        )
+        db.add(q)
+        it.status = "published"
+        db.commit()
+        return {"detail": f"Published as quiz ({len(questions)} questions) in {room.name}.",
+                "item_id": it.id, "status": it.status, "quiz_id": q.id, "classroom_id": room.id}
     it.status = "ready"
     it.updated_at = datetime.utcnow()
     db.commit()
-    return {"detail": "Marked ready. Classroom publishing arrives in Phase 3.", "item_id": it.id, "status": it.status}
+    return {"detail": "Marked ready for classroom publishing.", "item_id": it.id, "status": it.status}

@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import api from '../api'
 import GenerateView from '../components/GenerateView'
+import StudentClassroom from '../components/StudentClassroom'
+import StudentAdaptive from '../components/StudentAdaptive'
+import NotesPanel from '../components/NotesPanel'
 
 export default function StudentDashboard() {
   const [catalog, setCatalog] = useState([])
@@ -43,7 +46,13 @@ export default function StudentDashboard() {
         }
       </div>
 
+      <StudentClassroom />
+
+      <StudentAdaptive collections={collections} />
+
       <GenerateView collections={collections} />
+
+      <NotesPanel />
 
       <div style={{ marginTop:16, background:'#fff3e0', padding:12, borderRadius:8, border:'1px solid #ffe0b2', fontSize:13 }}>
         <b>Note for Students:</b> You can only query content from PDFs listed above. If you ask something not in syllabus, the system will reply <i>"Not found in uploaded syllabus"</i> to prevent hallucination. This ensures syllabus coverage and factual correctness.

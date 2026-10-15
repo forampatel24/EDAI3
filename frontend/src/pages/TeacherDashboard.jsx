@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import api from '../api'
 import GenerateView from '../components/GenerateView'
 import TeacherWorkspace from '../components/TeacherWorkspace'
+import TeacherClassroom from '../components/TeacherClassroom'
+import NotesPanel from '../components/NotesPanel'
 
 export default function TeacherDashboard() {
   const [collections, setCollections] = useState([])
@@ -118,7 +120,11 @@ export default function TeacherDashboard() {
 
       <TeacherWorkspace myCollections={myCollections} />
 
+      <TeacherClassroom />
+
       <GenerateView collections={collections} defaultCollectionId={selected?.id} />
+
+      <NotesPanel />
 
       <div style={{ marginTop:16, background:'white', padding:16, borderRadius:12, border:'1px solid #ddd' }}>
         <h4>All Collections Catalog (Teacher view - same as student but with preview access via Manage)</h4>

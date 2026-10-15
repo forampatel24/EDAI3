@@ -152,10 +152,10 @@ Three layers: Educational Platform (classroom, workspace, notes) + Curriculum-Gr
 
 | # | Feature | Status today |
 |---|---|---|
-| 1 | Digital Classroom & Quiz Management | Not done |
+| 1 | Digital Classroom & Quiz Management | Done (Phase 3: classes + codes + assignments + quizzes + auto-score + grades) |
 | 2 | Teacher Workspace | Done (Phase 2: 6 templates + custom query + evidence gate + edit/save + ready hook; classroom publish in Phase 3) |
-| 3 | Personalized Notes & Organization | Not done |
-| 4 | Adaptive & Misconception-Aware Learning | Not done (difficulty selector only) |
+| 3 | Personalized Notes & Organization | Done (Phase 4: folders + save from Generate/Workspace + edit + source trace) |
+| 4 | Adaptive & Misconception-Aware Learning | Done (Phase 4: overview + possible-misconception flags + targeted practice + feedback + class insights) |
 | 5 | Evidence-Gated Generation & Safe Abstention | Done (Phase 1) |
 | 6 | Iterative Retrieval & Evidence Repair | Done (Phase 1) |
 | 7 | CGGS | Not done |
@@ -174,12 +174,12 @@ Base RAG done: role auth, collections, multi-PDF upload, chunking, embeddings, C
 ### Phase 2 — Teacher usability (DONE, verified with pure-function tests + lint)
 - [x] Workspace templates (lesson_plan, quiz, question_paper, activity, explanation, custom) + custom query, evidence-gated grounded generation, editable JSON review, save, mark-ready; classroom publish hook stubbed for Phase 3.
 
-### Phase 3 — Classroom workflow
-- [ ] Classrooms + join, assignments with PDF + deadline + submissions, scheduled quizzes + attempts + scores, teacher performance view.
+### Phase 3 — Classroom workflow (DONE, verified with pure-function tests + lint)
+- [x] Classrooms + join codes, assignments with PDF + deadline + submissions + grading, scheduled quizzes with auto-scoring (MCQ) + descriptive review + grade override, workspace publish-to-classroom link, teacher performance views, student join/submit/attempt/scores.
 
-### Phase 4 — Learning continuity
-- [ ] Notes: save + collections + revisit with sources.
-- [ ] Adaptive: attempt history with concept tags, possible-misconception flag, targeted feedback + follow-up practice, adaptive difficulty inside curriculum.
+### Phase 4 — Learning continuity (DONE, verified with pure-function tests + lint)
+- [x] Notes: save any generation/workspace output with sources + folders; list, view, edit, revisit.
+- [x] Adaptive: attempt history with concept tags, possible-misconception flag (never certain), targeted feedback with grounded study pointers + follow-up practice, adaptive difficulty inside curriculum, class insights for teachers.
 
 ### Phase 5 — Evaluation
 - [ ] CGGS per-generation breakdown + storage; validate against teacher judgments before calling it a metric.
@@ -196,4 +196,4 @@ Base RAG done: role auth, collections, multi-PDF upload, chunking, embeddings, C
 
 ---
 
-*Phase 1 implemented and verified. Phases 2-5 paused until you say start.*
+*Phases 1-4 implemented and verified. Phase 5 paused until you say start.*

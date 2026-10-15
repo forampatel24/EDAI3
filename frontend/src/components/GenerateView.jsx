@@ -8,6 +8,20 @@ export default function GenerateView({ collections, defaultCollectionId }) {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
   const [error, setError] = useState(null)
+  const [noteMsg, setNoteMsg] = useState('')
+
+  const saveNote = async () => {
+    if (!result) return
+    const title = prompt.slice(0, 80) || 'Generated content'
+    try {
+      await api.post('/notes', {
+        title, collection_id: parseInt(collectionId) || undefined,
+        source_type: 'generate', content: result,
+        meta: { prompt, difficulty, citations: result.citations?.length || 0, grounded: result.grounded },
+      })
+      setNoteMsg('Saved to notes!')
+    } catch (e) { setNoteMsg(e.response?.data?.detail || e.message) }
+  }
 
   const generate = async () => {
     if (!collectionId) return setError('Select a collection')
@@ -42,11 +56,13 @@ export default function GenerateView({ collections, defaultCollectionId }) {
         <div style={{ marginTop:20 }}>
           {result.abstained && <div style={{ background:'#e3f2fd', padding:10, borderRadius:6, marginBottom:12, border:'1px solid #64b5f6' }}>🛑 Not generated — insufficient curriculum evidence. {result.warning}</div>}
           {!result.abstained && result.warning && <div style={{ background:'#fff3e0', padding:10, borderRadius:6, marginBottom:12, border:'1px solid #ffb74d' }}>⚠️ {result.warning}</div>}
-          <div style={{ display:'flex', gap:8, marginBottom:8, flexWrap:'wrap' }}>
+          <div style={{ display:'flex', gap:8, marginBottom:8, flexWrap:'wrap', alignItems:'center' }}>
             <span style={{ background: result.grounded ? '#e8f5e9' : '#ffebee', padding:'4px 8px', borderRadius:6, fontSize:12 }}>{result.grounded ? '✅ Grounded' : '⚠️ Ungrounded'}</span>
             <span style={{ fontSize:12, color:'#666' }}>{result.citations.length} citations • {result.retrieved_chunks.length} chunks retrieved</span>
             {result.evidence_status && <span style={{ background: result.evidence_status==='sufficient' ? '#e8f5e9' : '#ffebee', padding:'4px 8px', borderRadius:6, fontSize:12 }}>Evidence: {result.evidence_status}{result.evidence_score!=null ? ` (${result.evidence_score.toFixed(2)})` : ''}{result.repair_used ? ' • repaired' : ''}</span>}
+            {!result.abstained && <button onClick={saveNote} style={{ background:'#6a1b9a', color:'white', border:'none', padding:'4px 12px', borderRadius:6, cursor:'pointer', fontSize:12 }}>📌 Save as Note</button>}
           </div>
+          {noteMsg && <div style={{ fontSize:12, color:'#2e7d32', marginBottom:8 }}>{noteMsg}</div>}
           {result.alignment_warning && <div style={{ background:'#f3e5f5', padding:10, borderRadius:6, marginBottom:12, border:'1px solid #ce93d8', fontSize:13 }}>📐 {result.alignment_warning}</div>}
           {result.citation_issues && result.citation_issues.length>0 && <div style={{ background:'#ffebee', padding:10, borderRadius:6, marginBottom:12, border:'1px solid #e57373', fontSize:13 }}>📎 Citation check: {result.citation_issues.join(' ')}</div>}
 

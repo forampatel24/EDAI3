@@ -29,6 +29,19 @@ export default function TeacherWorkspace({ myCollections }) {
   const [editTitle, setEditTitle] = useState('')
   const [msg, setMsg] = useState('')
 
+  const saveToNotes = async () => {
+    if (!result || result.abstained) return
+    try {
+      const parsed = JSON.parse(editText)
+      await api.post('/notes', {
+        title: editTitle || result.title, collection_id: result.collection_id,
+        source_type: 'workspace', source_ref_id: result.id,
+        content: parsed, meta: { kind: result.kind, evidence: result.evidence_status },
+      })
+      setMsg('Saved to notes!')
+    } catch (e) { setMsg(e.response?.data?.detail || e.message) }
+  }
+
   const load = async () => {
     try {
       const res = await api.get('/workspace')
@@ -142,9 +155,10 @@ export default function TeacherWorkspace({ myCollections }) {
               {result.warning && <div style={{ background: '#fff3e0', padding: 8, borderRadius: 6, marginBottom: 8, fontSize: 13 }}>⚠️ {result.warning}</div>}
               <input value={editTitle} onChange={e => setEditTitle(e.target.value)} style={{ ...inp, width: '100%', marginBottom: 8 }} />
               <textarea value={editText} onChange={e => setEditText(e.target.value)} rows={14} style={{ width: '100%', fontFamily: 'monospace', fontSize: 12, padding: 8, borderRadius: 6, border: '1px solid #ccc' }} />
-              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
                 <button onClick={saveEdit} style={btn}>Save Edits</button>
-                <button onClick={publish} style={{ ...btn, background: '#6a1b9a' }}>Mark Ready (Publish in Phase 3)</button>
+                <button onClick={saveToNotes} style={{ ...btn, background: '#2e7d32' }}>📌 Save to Notes</button>
+                <button onClick={publish} style={{ ...btn, background: '#6a1b9a' }}>Mark Ready (Publish in Classroom ↓)</button>
               </div>
             </>}
         </div>
