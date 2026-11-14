@@ -1,11 +1,11 @@
 """Phase 2: teacher workspace CRUD (teacher-only). Generation is evidence-gated."""
 import json
-from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import User, Collection, WorkspaceItem
 from ..auth import require_role
+from ..utils import utcnow
 from ..services.evidence import retrieve_with_repair, abstain_response
 from ..services.workspace import KINDS, generate_workspace_content
 from ..services.validator import validate_citations, check_alignment
@@ -99,9 +99,12 @@ def workspace_list(db: Session = Depends(get_db), current_user: User = Depends(r
     items = db.query(WorkspaceItem).filter(
         WorkspaceItem.teacher_id == current_user.id
     ).order_by(WorkspaceItem.updated_at.desc()).all()
+    if not items:
+        return []
+    cols = {c.id: c for c in db.query(Collection).filter(Collection.id.in_({it.collection_id for it in items})).all()}
     out = []
     for it in items:
-        col = db.query(Collection).filter(Collection.id == it.collection_id).first()
+        col = cols.get(it.collection_id)
         out.append(_to_out(it, col.name if col else None))
     return out
 
@@ -135,7 +138,7 @@ def workspace_update(
         if req.status not in ("draft", "ready"):
             raise HTTPException(status_code=400, detail="status must be draft or ready")
         it.status = req.status
-    it.updated_at = datetime.utcnow()
+    it.updated_at = utcnow()
     db.commit(); db.refresh(it)
     col = db.query(Collection).filter(Collection.id == it.collection_id).first()
     return _to_out(it, col.name if col else None)
@@ -177,7 +180,10 @@ def workspace_publish(
         ).first()
         if not room:
             raise HTTPException(status_code=404, detail="Classroom not found or not owned")
-        content = json.loads(it.content_json or "{}")
+        try:
+            content = json.loads(it.content_json or "{}")
+        except Exception:
+            content = {}
         if target == "assignment":
             intro = content.get("introduction") or content.get("explanation") or content.get("content") or ""
             a = Assignment(
@@ -205,6 +211,6 @@ def workspace_publish(
         return {"detail": f"Published as quiz ({len(questions)} questions) in {room.name}.",
                 "item_id": it.id, "status": it.status, "quiz_id": q.id, "classroom_id": room.id}
     it.status = "ready"
-    it.updated_at = datetime.utcnow()
+    it.updated_at = utcnow()
     db.commit()
     return {"detail": "Marked ready for classroom publishing.", "item_id": it.id, "status": it.status}

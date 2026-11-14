@@ -1,11 +1,12 @@
 """Phase 4: personalized notes — save AI content, organize into folders."""
 import json
-from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import User, Collection, NoteFolder, Note
 from ..auth import get_current_user
+from ..utils import utcnow
 from ..schemas import NoteFolderCreate, NoteFolderOut, NoteCreate, NoteOut, NoteUpdateRequest
 
 router = APIRouter(prefix="/notes", tags=["notes"])
@@ -118,7 +119,7 @@ def update_note(note_id: int, payload: NoteUpdateRequest, db: Session = Depends(
         n.content_json = json.dumps(payload.content)
     if payload.meta is not None:
         n.meta_json = json.dumps(payload.meta)
-    n.updated_at = datetime.utcnow()
+    n.updated_at = utcnow()
     db.commit(); db.refresh(n)
     return _note_out(db, n)
 

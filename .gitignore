@@ -16,6 +16,7 @@ venv/
 
 # Env
 .env
+**/.jwt_secret
 
 # Logs
 *.log
