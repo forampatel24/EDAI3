@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import api from '../api'
+import MathText from './MathText'
 
 export default function StudentAdaptive({ collections }) {
   const [overview, setOverview] = useState(null)
@@ -34,25 +35,25 @@ export default function StudentAdaptive({ collections }) {
   }
 
   return (
-    <div style={{ marginTop: 16, background: 'white', padding: 16, borderRadius: 12, border: '1px solid #ddd' }}>
-      <h3 style={{ marginTop: 0 }}>🎯 Adaptive Learning — Practice What You Need</h3>
+    <div className="card section-card">
+      <h3>Adaptive learning — practice what you need</h3>
       {!overview || overview.total_attempts === 0 ? (
-        <p style={{ fontSize: 13, color: '#666' }}>Attempt a classroom quiz first — your performance here will drive personalized practice.</p>
+        <p style={{ fontSize: 13, color: 'var(--muted)' }}>Attempt a classroom quiz first — your performance here will drive personalized practice.</p>
       ) : (
         <>
           <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-            <span style={{ background: '#e8eaf6', padding: '4px 10px', borderRadius: 12, fontSize: 12 }}>
+            <span style={{ background: 'var(--blue-soft)', padding: '4px 10px', borderRadius: 12, fontSize: 12 }}>
               Accuracy: {(overview.overall_accuracy * 100).toFixed(0)}% over {overview.total_attempts} answers
             </span>
-            <span style={{ background: '#fff9c4', padding: '4px 10px', borderRadius: 12, fontSize: 12 }}>
+            <span style={{ background: 'var(--yellow-soft)', border: '1px solid var(--yellow-border)', padding: '4px 10px', borderRadius: 999, fontSize: 12 }}>
               Suggested difficulty: {overview.suggested_difficulty}
             </span>
           </div>
           {overview.concepts.map(c => (
-            <div key={c.concept} style={{ padding: 8, border: '1px solid #eee', borderRadius: 6, marginBottom: 6, background: c.possible_misconception ? '#fff3e0' : '#fafafa' }}>
+            <div key={c.concept} style={{ padding: 8, border: '1px solid var(--line)', borderRadius: 6, marginBottom: 6, background: c.possible_misconception ? 'var(--yellow-soft)' : 'var(--paper)' }}>
               <b>{c.concept}</b>
-              <span style={{ fontSize: 12, color: '#666' }}> • {c.correct}/{c.attempts} ({(c.accuracy * 100).toFixed(0)}%)</span>
-              {c.possible_misconception && <span style={{ fontSize: 12, color: '#e65100' }}> • ⚠️ possible misconception — practice recommended</span>}
+              <span style={{ fontSize: 12, color: 'var(--muted)' }}> • {c.correct}/{c.attempts} ({(c.accuracy * 100).toFixed(0)}%)</span>
+              {c.possible_misconception && <span style={{ fontSize: 12, color: 'var(--yellow-ink)' }}> • ⚠️ possible misconception — practice recommended</span>}
             </div>
           ))}
         </>
@@ -78,18 +79,18 @@ export default function StudentAdaptive({ collections }) {
         <input placeholder="Type concept e.g., Kinetic Energy" value={customConcept} onChange={e => setCustomConcept(e.target.value)} style={{ ...inp, width: '100%', marginBottom: 8 }} />
       )}
       <button onClick={genPractice} disabled={loading} style={{ ...btn, opacity: loading ? 0.6 : 1 }}>{loading ? 'Generating...' : 'Generate Practice'}</button>
-      {error && <div style={{ marginTop: 8, color: 'red', background: '#ffebee', padding: 8, borderRadius: 6 }}>{error}</div>}
+      {error && <div style={{ marginTop: 8, color: 'var(--red)', background: 'var(--pink-soft)', padding: 8, borderRadius: 10 }}>{error}</div>}
       {practice && (
         <div style={{ marginTop: 12 }}>
           {practice.abstained
-            ? <div style={{ background: '#e3f2fd', padding: 10, borderRadius: 6 }}>🛑 {practice.warning}</div>
+            ? <div style={{ background: 'var(--blue-soft)', padding: 10, borderRadius: 6 }}>🛑 {practice.warning}</div>
             : <>
-              <div style={{ fontSize: 12, color: '#666', marginBottom: 6 }}>Difficulty: {practice.difficulty} • Evidence: {practice.evidence_score?.toFixed(2)}</div>
+              <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>Difficulty: {practice.difficulty} • Evidence: {practice.evidence_score?.toFixed(2)}</div>
               {practice.questions.map((q, i) => (
-                <div key={i} style={{ background: '#fafafa', padding: 10, borderRadius: 6, marginBottom: 6, border: '1px solid #eee' }}>
-                  <b>Q{i + 1}: {q.question}</b>
-                  {q.options?.length > 0 && <ul>{q.options.map((o, j) => <li key={j} style={{ fontSize: 13 }}>{o}</li>)}</ul>}
-                  <div style={{ fontSize: 12, color: '#2e7d32' }}>Answer: {q.answer}</div>
+                <div key={i} style={{ background: 'var(--paper)', padding: 10, borderRadius: 6, marginBottom: 6, border: '1px solid var(--line)' }}>
+                  <MathText as="div" style={{ fontWeight: 600 }}>{'Q' + (i + 1) + ': ' + q.question}</MathText>
+                  {q.options?.length > 0 && <ul>{q.options.map((o, j) => <li key={j} style={{ fontSize: 13 }}><MathText as="span">{o}</MathText></li>)}</ul>}
+                  <div style={{ fontSize: 12, color: 'var(--green)' }}>Answer: <MathText as="span">{q.answer}</MathText></div>
                 </div>
               ))}
             </>}
@@ -98,5 +99,5 @@ export default function StudentAdaptive({ collections }) {
     </div>
   )
 }
-const inp = { padding: 8, borderRadius: 6, border: '1px solid #ccc' }
-const btn = { background: '#1a237e', color: 'white', border: 'none', padding: '8px 14px', borderRadius: 6, cursor: 'pointer' }
+const inp = {}
+const btn = { background: 'var(--primary)', color: 'white', border: 'none', padding: '10px 18px', borderRadius: 999, cursor: 'pointer', fontWeight: 600, fontSize: 13.5 }

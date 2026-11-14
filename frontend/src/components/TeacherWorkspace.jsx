@@ -101,9 +101,9 @@ export default function TeacherWorkspace({ myCollections }) {
   }
 
   return (
-    <div style={{ marginTop: 16, background: 'white', padding: 16, borderRadius: 12, border: '1px solid #ddd' }}>
-      <h3 style={{ marginTop: 0 }}>📝 Teacher Workspace — Lessons & Assessments</h3>
-      <p style={{ fontSize: 13, color: '#666' }}>Pick a template or write a custom query. Generation is evidence-gated from your collection. Edit before saving; publish to classroom arrives in Phase 3.</p>
+    <div className="card section-card">
+      <h3>Lessons &amp; assessments</h3>
+      <p className="card-sub">Pick a template or write a custom query. Generation is evidence-gated from your collection. Edit before saving; publish to classroom arrives in Phase 3.</p>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
         <select value={kind} onChange={e => setKind(e.target.value)} style={inp}>
           {KINDS.map(k => <option key={k.value} value={k.value}>{k.label}</option>)}
@@ -135,47 +135,47 @@ export default function TeacherWorkspace({ myCollections }) {
           <input placeholder="Objectives (optional)" value={objectives} onChange={e => setObjectives(e.target.value)} style={{ ...inp, flex: 1 }} />
         </div>
       )}
-      <textarea placeholder="Extra instructions or fully custom query (optional)" value={custom} onChange={e => setCustom(e.target.value)} rows={2} style={{ width: '100%', padding: 8, borderRadius: 6, border: '1px solid #ccc' }} />
+      <textarea placeholder="Extra instructions or fully custom query (optional)" value={custom} onChange={e => setCustom(e.target.value)} rows={2} style={{ width: '100%' }} />
       <div style={{ marginTop: 8 }}>
         <button onClick={generate} disabled={loading} style={{ ...btn, opacity: loading ? 0.6 : 1 }}>{loading ? 'Generating...' : 'Generate (Evidence-Gated)'}</button>
       </div>
-      {error && <div style={{ marginTop: 10, color: 'red', background: '#ffebee', padding: 8, borderRadius: 6 }}>{error}</div>}
-      {msg && <div style={{ marginTop: 10, background: '#e8f5e9', padding: 8, borderRadius: 6, fontSize: 13 }}>{msg}</div>}
+      {error && <div style={{ marginTop: 10, color: 'var(--red)', background: 'var(--pink-soft)', padding: 8, borderRadius: 6 }}>{error}</div>}
+      {msg && <div style={{ marginTop: 10, background: 'var(--mint)', padding: 8, borderRadius: 6, fontSize: 13 }}>{msg}</div>}
 
       {result && (
-        <div style={{ marginTop: 12, border: '1px solid #e0e0e0', borderRadius: 8, padding: 12 }}>
+        <div style={{ marginTop: 14, border: '1px solid var(--line)', borderRadius: 12, padding: 14, background: 'var(--paper)' }}>
           {result.abstained
-            ? <div style={{ background: '#e3f2fd', padding: 10, borderRadius: 6, border: '1px solid #64b5f6' }}>🛑 {result.warning || 'Insufficient evidence — abstained.'}</div>
+            ? <div style={{ background: 'var(--blue-soft)', padding: 10, borderRadius: 6, border: '1px solid var(--blue-border)' }}>🛑 {result.warning || 'Insufficient evidence — abstained.'}</div>
             : <>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
                 <b>{result.kind}</b>
-                <span style={{ fontSize: 12, color: '#666' }}>Evidence: {result.evidence_status}{result.evidence_score != null ? ` (${result.evidence_score.toFixed(2)})` : ''}{result.repair_used ? ' • repaired' : ''}</span>
-                <span style={{ fontSize: 12, background: result.status === 'ready' ? '#e8f5e9' : '#f5f5f5', padding: '2px 8px', borderRadius: 10 }}>{result.status}</span>
+                <span style={{ fontSize: 12, color: 'var(--muted)' }}>Evidence: {result.evidence_status}{result.evidence_score != null ? ` (${result.evidence_score.toFixed(2)})` : ''}{result.repair_used ? ' • repaired' : ''}</span>
+                <span style={{ fontSize: 12, background: result.status === 'ready' ? 'var(--mint)' : 'var(--card)', padding: '2px 8px', borderRadius: 10 }}>{result.status}</span>
               </div>
-              {result.warning && <div style={{ background: '#fff3e0', padding: 8, borderRadius: 6, marginBottom: 8, fontSize: 13 }}>⚠️ {result.warning}</div>}
+              {result.warning && <div style={{ background: 'var(--yellow-soft)', padding: 8, borderRadius: 6, marginBottom: 8, fontSize: 13 }}>⚠️ {result.warning}</div>}
               <input value={editTitle} onChange={e => setEditTitle(e.target.value)} style={{ ...inp, width: '100%', marginBottom: 8 }} />
-              <textarea value={editText} onChange={e => setEditText(e.target.value)} rows={14} style={{ width: '100%', fontFamily: 'monospace', fontSize: 12, padding: 8, borderRadius: 6, border: '1px solid #ccc' }} />
+              <textarea value={editText} onChange={e => setEditText(e.target.value)} rows={14} style={{ width: '100%', fontFamily: 'monospace', fontSize: 12 }} />
               <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
                 <button onClick={saveEdit} style={btn}>Save Edits</button>
-                <button onClick={saveToNotes} style={{ ...btn, background: '#2e7d32' }}>📌 Save to Notes</button>
-                <button onClick={publish} style={{ ...btn, background: '#6a1b9a' }}>Mark Ready (Publish in Classroom ↓)</button>
+                <button onClick={saveToNotes} style={{ ...btn, background: 'var(--green)' }}>📌 Save to Notes</button>
+                <button onClick={publish} style={{ ...btn, background: 'var(--primary-dark)' }}>Mark Ready (Publish in Classroom ↓)</button>
               </div>
             </>}
         </div>
       )}
 
       <h4>My Workspace Items ({items.length})</h4>
-      {items.length === 0 ? <div style={{ color: '#999', fontSize: 13 }}>Nothing saved yet. Generate above.</div> :
+      {items.length === 0 ? <div style={{ color: 'var(--faint)', fontSize: 13 }}>Nothing saved yet. Generate above.</div> :
         items.map(it => (
-          <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 8, border: '1px solid #eee', borderRadius: 6, marginBottom: 6 }}>
+          <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 8, border: '1px solid var(--line)', borderRadius: 6, marginBottom: 6 }}>
             <div style={{ cursor: 'pointer' }} onClick={() => selectItem(it)}>
-              <b>{it.title}</b> <span style={{ fontSize: 12, color: '#666' }}>({it.kind} • {it.collection_name} • {it.status}{it.abstained ? ' • abstained' : ''})</span>
+              <b>{it.title}</b> <span style={{ fontSize: 12, color: 'var(--muted)' }}>({it.kind} • {it.collection_name} • {it.status}{it.abstained ? ' • abstained' : ''})</span>
             </div>
-            <button onClick={() => delItem(it.id)} style={{ background: '#ffcdd2', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>Delete</button>
+            <button onClick={() => delItem(it.id)} style={{ background: 'var(--pink-soft)', color: 'var(--red)', fontWeight: 600, border: 'none', padding: '4px 12px', borderRadius: 999, cursor: 'pointer', fontSize: 12 }}>Delete</button>
           </div>
         ))}
     </div>
   )
 }
-const inp = { padding: 8, borderRadius: 6, border: '1px solid #ccc' }
-const btn = { background: '#1a237e', color: 'white', border: 'none', padding: '8px 14px', borderRadius: 6, cursor: 'pointer' }
+const inp = {}
+const btn = { background: 'var(--primary)', color: 'white', border: 'none', padding: '9px 16px', borderRadius: 999, cursor: 'pointer', fontWeight: 600, fontSize: 13.5 }
