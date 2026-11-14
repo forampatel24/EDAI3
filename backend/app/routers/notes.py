@@ -2,6 +2,7 @@
 import json
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import User, Collection, NoteFolder, Note
@@ -17,14 +18,7 @@ def _folder_out(db: Session, f: NoteFolder):
     return NoteFolderOut(id=f.id, name=f.name, note_count=count, created_at=f.created_at)
 
 
-def _note_out(db: Session, n: Note):
-    folder_name, collection_name = None, None
-    if n.folder_id:
-        f = db.query(NoteFolder).filter(NoteFolder.id == n.folder_id).first()
-        folder_name = f.name if f else None
-    if n.collection_id:
-        c = db.query(Collection).filter(Collection.id == n.collection_id).first()
-        collection_name = c.name if c else None
+def _note_out(db: Session, n: Note, folder_name=None, collection_name=None):
     try:
         content = json.loads(n.content_json or "{}")
     except Exception:
@@ -41,6 +35,14 @@ def _note_out(db: Session, n: Note):
     )
 
 
+def _note_out_many(db: Session, notes: list[Note]) -> list[NoteOut]:
+    folder_ids = {n.folder_id for n in notes if n.folder_id}
+    coll_ids = {n.collection_id for n in notes if n.collection_id}
+    folder_names = dict(db.query(NoteFolder.id, NoteFolder.name).filter(NoteFolder.id.in_(folder_ids)).all()) if folder_ids else {}
+    coll_names = dict(db.query(Collection.id, Collection.name).filter(Collection.id.in_(coll_ids)).all()) if coll_ids else {}
+    return [_note_out(db, n, folder_names.get(n.folder_id), coll_names.get(n.collection_id)) for n in notes]
+
+
 @router.post("/folders", response_model=NoteFolderOut)
 def create_folder(payload: NoteFolderCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     if not payload.name.strip():
@@ -53,7 +55,16 @@ def create_folder(payload: NoteFolderCreate, db: Session = Depends(get_db), curr
 @router.get("/folders", response_model=list[NoteFolderOut])
 def list_folders(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     folders = db.query(NoteFolder).filter(NoteFolder.owner_id == current_user.id).order_by(NoteFolder.created_at).all()
-    return [_folder_out(db, f) for f in folders]
+    counts = dict(
+        db.query(Note.folder_id, func.count(Note.id))
+        .filter(Note.owner_id == current_user.id, Note.folder_id.isnot(None))
+        .group_by(Note.folder_id)
+        .all()
+    )
+    return [
+        NoteFolderOut(id=f.id, name=f.name, note_count=counts.get(f.id, 0), created_at=f.created_at)
+        for f in folders
+    ]
 
 
 @router.delete("/folders/{folder_id}")
@@ -91,7 +102,7 @@ def list_notes(folder_id: int = None, db: Session = Depends(get_db), current_use
     if folder_id is not None:
         q = q.filter(Note.folder_id == folder_id)
     notes = q.order_by(Note.updated_at.desc()).all()
-    return [_note_out(db, n) for n in notes]
+    return _note_out_many(db, notes)
 
 
 @router.get("/{note_id}", response_model=NoteOut)
@@ -109,12 +120,14 @@ def update_note(note_id: int, payload: NoteUpdateRequest, db: Session = Depends(
         raise HTTPException(status_code=404, detail="Note not found")
     if payload.title is not None:
         n.title = payload.title.strip() or n.title
-    if payload.folder_id is not None:
+    if payload.clear_folder:
+        n.folder_id = None
+    elif payload.folder_id is not None:
         if payload.folder_id:
             f = db.query(NoteFolder).filter(NoteFolder.id == payload.folder_id, NoteFolder.owner_id == current_user.id).first()
             if not f:
                 raise HTTPException(status_code=404, detail="Folder not found")
-        n.folder_id = payload.folder_id
+        n.folder_id = payload.folder_id or None
     if payload.content is not None:
         n.content_json = json.dumps(payload.content)
     if payload.meta is not None:

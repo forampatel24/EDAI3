@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import api from '../api'
 import MathText from './MathText'
 
@@ -10,17 +10,27 @@ export default function GenerateView({ collections, defaultCollectionId }) {
   const [result, setResult] = useState(null)
   const [error, setError] = useState(null)
   const [noteMsg, setNoteMsg] = useState('')
+  const [folders, setFolders] = useState([])
+  const [noteFolderId, setNoteFolderId] = useState('')
+
+  useEffect(() => {
+    api.get('/notes/folders').then(r => setFolders(r.data)).catch(() => {})
+  }, [])
 
   const saveNote = async () => {
     if (!result) return
     const title = prompt.slice(0, 80) || 'Generated content'
     try {
       await api.post('/notes', {
-        title, collection_id: parseInt(collectionId) || undefined,
-        source_type: 'generate', content: result,
+        title,
+        collection_id: parseInt(collectionId) || undefined,
+        folder_id: noteFolderId ? parseInt(noteFolderId) : undefined,
+        source_type: 'generate',
+        content: result,
         meta: { prompt, difficulty, citations: result.citations?.length || 0, grounded: result.grounded },
       })
       setNoteMsg('Saved to notes!')
+      setNoteFolderId('')
     } catch (e) { setNoteMsg(e.response?.data?.detail || e.message) }
   }
 
@@ -61,7 +71,15 @@ export default function GenerateView({ collections, defaultCollectionId }) {
             <span style={{ background: result.grounded ? 'var(--mint)' : 'var(--pink-soft)', padding:'4px 10px', borderRadius:999, fontSize:12, fontWeight:600 }}>{result.grounded ? '✅ Grounded' : '⚠️ Ungrounded'}</span>
             <span style={{ fontSize:12, color:'var(--muted)' }}>{result.citations.length} citations • {result.retrieved_chunks.length} chunks retrieved</span>
             {result.evidence_status && <span style={{ background: result.evidence_status==='sufficient' ? 'var(--mint)' : 'var(--pink-soft)', padding:'4px 10px', borderRadius:999, fontSize:12, fontWeight:600 }}>Evidence: {result.evidence_status}{result.evidence_score!=null ? ` (${result.evidence_score.toFixed(2)})` : ''}{result.repair_used ? ' • repaired' : ''}</span>}
-            {!result.abstained && <button onClick={saveNote} style={{ background:'var(--primary-dark)', color:'white', border:'none', padding:'5px 14px', borderRadius:999, cursor:'pointer', fontSize:12, fontWeight:600 }}>📌 Save as Note</button>}
+            {!result.abstained && (
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <select value={noteFolderId} onChange={e=>setNoteFolderId(e.target.value)} style={{ padding: '5px 10px', borderRadius: 8, border: '1px solid var(--line-strong)', background: 'var(--card)', color: 'var(--ink)', fontSize: 12 }}>
+                  <option value="">— No folder</option>
+                  {folders.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                </select>
+                <button onClick={saveNote} style={{ background:'var(--primary-dark)', color:'white', border:'none', padding:'5px 14px', borderRadius:999, cursor:'pointer', fontSize:12, fontWeight:600 }}>📌 Save as Note</button>
+              </div>
+            )}
           </div>
           {noteMsg && <div style={{ fontSize:12, color:'var(--green)', marginBottom:8 }}>{noteMsg}</div>}
           {result.alignment_warning && <div style={{ background:'var(--lavender)', padding:10, borderRadius:10, marginBottom:12, border:'1px solid var(--lavender-line)', fontSize:13 }}>📐 {result.alignment_warning}</div>}

@@ -305,6 +305,7 @@ class NoteOut(BaseModel):
 class NoteUpdateRequest(BaseModel):
     title: Optional[str] = None
     folder_id: Optional[int] = None
+    clear_folder: bool = False  # move the note to "No folder"
     content: Optional[dict] = None
     meta: Optional[dict] = None
 
