@@ -16,34 +16,60 @@ from ..schemas import (
 router = APIRouter(prefix="/adaptive", tags=["adaptive"])
 
 
-def _records_for_attempts(db: Session, attempts: list):
+def _questions_by_quiz(db: Session, attempts: list) -> dict:
+    """One query for all referenced quizzes instead of one per attempt."""
+    qids = {a.quiz_id for a in attempts}
+    if not qids:
+        return {}
+    out = {}
+    for q in db.query(Quiz).filter(Quiz.id.in_(qids)).all():
+        try:
+            out[q.id] = json.loads(q.questions_json or "[]")
+        except Exception:
+            out[q.id] = []
+    return out
+
+
+def _iter_scored(att: QuizAttempt, questions: list):
+    """Yield (index, detail, question, marks, awarded, correct) for each scored item.
+
+    Single source of truth for turning a stored attempt into per-question results —
+    used by both the aggregate stats and the per-question feedback view.
+    """
+    try:
+        details = json.loads(att.details_json or "[]")
+    except Exception:
+        details = []
+    for i, d in enumerate(details):
+        if not isinstance(d, dict) or d.get("teacher_override"):
+            continue
+        qq = questions[i] if i < len(questions) and isinstance(questions[i], dict) else {}
+        marks = float(d.get("marks", 1) or 1)
+        awarded = float(d.get("marks_awarded", 0) or 0)
+        correct = awarded >= marks * 0.99 and marks > 0
+        yield i, d, qq, marks, awarded, correct
+
+
+def _records_for_attempts(attempts: list, questions_by_quiz: dict):
     records = []
     for att in attempts:
-        try:
-            questions = json.loads(db.query(Quiz).filter(Quiz.id == att.quiz_id).first().questions_json or "[]")
-        except Exception:
-            questions = []
-        try:
-            details = json.loads(att.details_json or "[]")
-        except Exception:
-            details = []
-        for i, d in enumerate(details):
-            if not isinstance(d, dict) or d.get("teacher_override"):
-                continue
-            q = questions[i] if i < len(questions) else {}
-            marks = float(d.get("marks", 1) or 1)
-            awarded = float(d.get("marks_awarded", 0) or 0)
+        questions = questions_by_quiz.get(att.quiz_id, [])
+        for i, _d, qq, _m, _a, correct in _iter_scored(att, questions):
             records.append({
-                "concept": concept_of(q if isinstance(q, dict) else {}, i),
-                "correct": awarded >= marks * 0.99 and marks > 0,
+                "concept": concept_of(qq, i),
+                "correct": correct,
             })
     return records
 
 
+def _completed_attempts(db: Session, query):
+    return query.filter(QuizAttempt.completed.is_(True))
+
+
 @router.get("/overview", response_model=AdaptiveOverviewOut)
 def my_overview(db: Session = Depends(get_db), current_user: User = Depends(require_role("student"))):
-    attempts = db.query(QuizAttempt).filter(QuizAttempt.student_id == current_user.id).all()
-    stats = aggregate(_records_for_attempts(db, attempts))
+    attempts = _completed_attempts(db, db.query(QuizAttempt).filter(QuizAttempt.student_id == current_user.id)).all()
+    stats = aggregate(_records_for_attempts(attempts, _questions_by_quiz(db, attempts)))
     weak = [s["concept"] for s in stats if s["possible_misconception"]]
     return AdaptiveOverviewOut(
         concepts=[ConceptStatOut(**s) for s in stats],
@@ -59,8 +85,8 @@ def targeted_practice(payload: PracticeRequest, db: Session = Depends(get_db), c
     col = db.query(Collection).filter(Collection.id == payload.collection_id).first()
     if not col:
         raise HTTPException(status_code=404, detail="Collection not found")
-    attempts = db.query(QuizAttempt).filter(QuizAttempt.student_id == current_user.id).all()
-    stats = aggregate(_records_for_attempts(db, attempts))
+    attempts = _completed_attempts(db, db.query(QuizAttempt).filter(QuizAttempt.student_id == current_user.id)).all()
+    stats = aggregate(_records_for_attempts(attempts, _questions_by_quiz(db, attempts)))
     difficulty = payload.difficulty or "auto"
     if difficulty == "auto":
         difficulty = difficulty_for_concept(stats, payload.concept, default="medium")
@@ -98,10 +124,6 @@ def _feedback_for_attempt(db: Session, att: QuizAttempt):
         questions = json.loads(q.questions_json or "[]")
     except Exception:
         questions = []
-    try:
-        details = json.loads(att.details_json or "[]")
-    except Exception:
-        details = []
     # grounded study pointers: top-1 chunk from the linked curriculum collection
     chroma_name = None
     if q.source_workspace_item_id:
@@ -110,13 +132,7 @@ def _feedback_for_attempt(db: Session, att: QuizAttempt):
             coll = db.query(Collection).filter(Collection.id == item.collection_id).first()
             chroma_name = coll.chroma_collection_name if coll else None
     items = []
-    for i, d in enumerate(details):
-        if not isinstance(d, dict) or d.get("teacher_override"):
-            continue
-        qq = questions[i] if i < len(questions) and isinstance(questions[i], dict) else {}
-        marks = float(d.get("marks", 1) or 1)
-        awarded = float(d.get("marks_awarded", 0) or 0)
-        correct = awarded >= marks * 0.99 and marks > 0
+    for i, d, qq, _marks, _awarded, correct in _iter_scored(att, questions):
         concept = concept_of(qq, i)
         pointer = None
         if not correct:
@@ -148,6 +164,8 @@ def attempt_feedback(attempt_id: int, db: Session = Depends(get_db), current_use
     if not att:
         raise HTTPException(status_code=404, detail="Attempt not found")
     q = db.query(Quiz).filter(Quiz.id == att.quiz_id).first()
+    if not q:
+        raise HTTPException(status_code=404, detail="Quiz not found")
     if current_user.role == "student" and att.student_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not your attempt")
     if current_user.role == "teacher":
@@ -168,14 +186,16 @@ def classroom_insights(classroom_id: int, db: Session = Depends(get_db), current
         raise HTTPException(status_code=404, detail="Classroom not found or not owned")
     quizzes = db.query(Quiz).filter(Quiz.classroom_id == classroom_id).all()
     qids = [q.id for q in quizzes]
-    attempts = db.query(QuizAttempt).filter(QuizAttempt.quiz_id.in_(qids)).all() if qids else []
-    stats = aggregate(_records_for_attempts(db, attempts))
+    attempts = _completed_attempts(db, db.query(QuizAttempt).filter(QuizAttempt.quiz_id.in_(qids))).all() if qids else []
+    cache = _questions_by_quiz(db, attempts)
+    stats = aggregate(_records_for_attempts(attempts, cache))
     per_student, by_student = [], {}
     for a in attempts:
         by_student.setdefault(a.student_id, []).append(a)
+    students = {u.id: u for u in db.query(User).filter(User.id.in_(by_student.keys())).all()} if by_student else {}
     for sid, atts in by_student.items():
-        u = db.query(User).filter(User.id == sid).first()
-        s = aggregate(_records_for_attempts(db, atts))
+        u = students.get(sid)
+        s = aggregate(_records_for_attempts(atts, cache))
         per_student.append({
             "student_id": sid, "name": u.name if u else None,
             "attempts": sum(x["attempts"] for x in s),

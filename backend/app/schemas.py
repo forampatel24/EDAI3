@@ -214,6 +214,7 @@ class QuizCreate(BaseModel):
     title: str
     topic: Optional[str] = None
     duration_minutes: Optional[int] = None
+    max_attempts: Optional[int] = 0  # 0 = unlimited
     available_from: Optional[datetime] = None
     available_until: Optional[datetime] = None
     questions: List[dict] = []
@@ -225,6 +226,7 @@ class QuizOut(BaseModel):
     title: str
     topic: Optional[str] = None
     duration_minutes: Optional[int] = None
+    max_attempts: int = 0
     available_from: Optional[datetime] = None
     available_until: Optional[datetime] = None
     questions: List[dict] = []
@@ -238,6 +240,13 @@ class QuizOut(BaseModel):
 
 class AttemptCreate(BaseModel):
     answers: List = []
+    attempt_id: Optional[int] = None  # id returned by /quizzes/{id}/start (time-boxed flow)
+
+class QuizStartOut(BaseModel):
+    attempt_id: int
+    started_at: datetime
+    duration_minutes: Optional[int] = None
+    remaining_seconds: Optional[int] = None
 
 class AttemptOut(BaseModel):
     id: int

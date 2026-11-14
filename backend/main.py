@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
 
-from app.database import Base, engine
+from app.database import Base, engine, run_light_migrations
 from app.models import (
     User, Collection, Document, WorkspaceItem,
     Classroom, ClassroomMember, Assignment, AssignmentSubmission, Quiz, QuizAttempt,
@@ -19,12 +19,13 @@ from app.routers import adaptive as adaptive_router
 from app.config import settings
 
 Base.metadata.create_all(bind=engine)
+run_light_migrations()
 
 app = FastAPI(title="RAG-Based Educational Content Generator", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
