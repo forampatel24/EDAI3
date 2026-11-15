@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from typing import List
-import os, re, shutil
+import os, re
 from ..database import get_db
 from ..models import User, Collection, Document
 from ..schemas import CollectionCreate, CollectionOut, DocumentOut, DocumentNameOnly
@@ -47,30 +48,45 @@ def create_collection(payload: CollectionCreate, db: Session = Depends(get_db), 
 @router.get("", response_model=List[CollectionOut])
 def list_collections(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     cols = db.query(Collection).all()
+    if not cols:
+        return []
+    counts = dict(
+        db.query(Document.collection_id, func.count(Document.id))
+        .filter(Document.collection_id.in_([c.id for c in cols]))
+        .group_by(Document.collection_id)
+        .all()
+    )
+    teachers = {u.id: u for u in db.query(User).filter(User.id.in_({c.teacher_id for c in cols})).all()}
     out = []
     for c in cols:
-        teacher = db.query(User).filter(User.id == c.teacher_id).first()
-        doc_count = db.query(Document).filter(Document.collection_id == c.id).count()
+        teacher = teachers.get(c.teacher_id)
         out.append(CollectionOut(
             id=c.id, name=c.name, subject=c.subject, class_level=c.class_level,
             description=c.description, teacher_id=c.teacher_id,
             teacher_email=teacher.email if teacher else None,
             teacher_name=teacher.name if teacher else None,
-            chroma_collection_name=c.chroma_collection_name, document_count=doc_count, created_at=c.created_at
+            chroma_collection_name=c.chroma_collection_name, document_count=counts.get(c.id, 0), created_at=c.created_at
         ))
     return out
 
 @router.get("/my", response_model=List[CollectionOut])
 def my_collections(db: Session = Depends(get_db), current_user: User = Depends(require_role("teacher"))):
     cols = db.query(Collection).filter(Collection.teacher_id == current_user.id).all()
+    if not cols:
+        return []
+    counts = dict(
+        db.query(Document.collection_id, func.count(Document.id))
+        .filter(Document.collection_id.in_([c.id for c in cols]))
+        .group_by(Document.collection_id)
+        .all()
+    )
     out = []
     for c in cols:
-        doc_count = db.query(Document).filter(Document.collection_id == c.id).count()
         out.append(CollectionOut(
             id=c.id, name=c.name, subject=c.subject, class_level=c.class_level,
             description=c.description, teacher_id=c.teacher_id,
             teacher_email=current_user.email, teacher_name=current_user.name,
-            chroma_collection_name=c.chroma_collection_name, document_count=doc_count, created_at=c.created_at
+            chroma_collection_name=c.chroma_collection_name, document_count=counts.get(c.id, 0), created_at=c.created_at
         ))
     return out
 
@@ -79,10 +95,11 @@ def get_documents(collection_id: int, db: Session = Depends(get_db), current_use
     col = db.query(Collection).filter(Collection.id == collection_id).first()
     if not col:
         raise HTTPException(status_code=404, detail="Collection not found")
-    # Teacher can see own, student can see any but filtered view handled separately
-    docs = db.query(Document).filter(Document.collection_id == collection_id).all()
-    # Teacher gets full, student gets name-only but same endpoint returns full; frontend filters. For strict, check role?
-    return docs
+    # Full document rows (internal filenames, storage paths) are owner-only;
+    # students use /names which exposes no storage details.
+    if not (current_user.role == "teacher" and col.teacher_id == current_user.id):
+        raise HTTPException(status_code=403, detail="Only the collection owner can view documents")
+    return db.query(Document).filter(Document.collection_id == collection_id).all()
 
 @router.get("/{collection_id}/documents/names", response_model=List[DocumentNameOnly])
 def get_document_names(collection_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -104,9 +121,9 @@ def delete_collection(collection_id: int, db: Session = Depends(get_db), current
         client = get_chroma_client()
         try:
             client.delete_collection(col.chroma_collection_name)
-        except:
+        except Exception:
             pass
-    except:
+    except Exception:
         pass
     # delete files
     docs = db.query(Document).filter(Document.collection_id == col.id).all()
@@ -114,7 +131,7 @@ def delete_collection(collection_id: int, db: Session = Depends(get_db), current
         try:
             if os.path.exists(d.file_path):
                 os.remove(d.file_path)
-        except:
+        except Exception:
             pass
     db.delete(col)
     db.commit()
@@ -140,7 +157,7 @@ def delete_document(doc_id: int, db: Session = Depends(get_db), current_user: Us
     try:
         if os.path.exists(doc.file_path):
             os.remove(doc.file_path)
-    except:
+    except Exception:
         pass
     db.delete(doc)
     db.commit()

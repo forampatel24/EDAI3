@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Float, Boolean, UniqueConstraint
 from sqlalchemy.orm import relationship
-from datetime import datetime
 from .database import Base
+from .utils import utcnow
 
 class User(Base):
     __tablename__ = "users"
@@ -10,7 +10,7 @@ class User(Base):
     password_hash = Column(String, nullable=False)
     role = Column(String, nullable=False)  # teacher | student
     name = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     collections = relationship("Collection", back_populates="teacher", cascade="all, delete-orphan")
 
@@ -23,7 +23,7 @@ class Collection(Base):
     description = Column(Text, nullable=True)
     teacher_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     chroma_collection_name = Column(String, unique=True, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     teacher = relationship("User", back_populates="collections")
     documents = relationship("Document", back_populates="collection", cascade="all, delete-orphan")
@@ -37,7 +37,7 @@ class Document(Base):
     file_path = Column(String, nullable=False)
     pages = Column(Integer, default=0)
     chunks = Column(Integer, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     collection = relationship("Collection", back_populates="documents")
 
@@ -55,8 +55,8 @@ class WorkspaceItem(Base):
     status = Column(String, nullable=False, default="draft")  # draft | ready | published (Phase 3)
     abstained = Column(Boolean, nullable=False, default=False)
     evidence_score = Column(Float, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
 
 class Classroom(Base):
@@ -70,7 +70,7 @@ class Classroom(Base):
     division = Column(String, nullable=True)
     code = Column(String, unique=True, index=True, nullable=False)  # join code
     description = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
 
 class ClassroomMember(Base):
@@ -78,7 +78,7 @@ class ClassroomMember(Base):
     id = Column(Integer, primary_key=True, index=True)
     classroom_id = Column(Integer, ForeignKey("classrooms.id"), nullable=False)
     student_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    joined_at = Column(DateTime, default=datetime.utcnow)
+    joined_at = Column(DateTime, default=utcnow)
     __table_args__ = (UniqueConstraint("classroom_id", "student_id", name="uq_class_student"),)
 
 
@@ -94,7 +94,7 @@ class Assignment(Base):
     attachment_filename = Column(String, nullable=True)
     attachment_path = Column(String, nullable=True)
     source_workspace_item_id = Column(Integer, ForeignKey("workspace_items.id"), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
 
 class AssignmentSubmission(Base):
@@ -105,7 +105,7 @@ class AssignmentSubmission(Base):
     text = Column(Text, nullable=True)
     file_filename = Column(String, nullable=True)
     file_path = Column(String, nullable=True)
-    submitted_at = Column(DateTime, default=datetime.utcnow)
+    submitted_at = Column(DateTime, default=utcnow)
     score = Column(Float, nullable=True)
     feedback = Column(Text, nullable=True)
 
@@ -118,11 +118,12 @@ class Quiz(Base):
     title = Column(String, nullable=False)
     topic = Column(String, nullable=True)
     duration_minutes = Column(Integer, nullable=True)
+    max_attempts = Column(Integer, nullable=False, default=0, server_default="0")  # 0 = unlimited
     available_from = Column(DateTime, nullable=True)
     available_until = Column(DateTime, nullable=True)
     questions_json = Column(Text, nullable=False, default="[]")
     source_workspace_item_id = Column(Integer, ForeignKey("workspace_items.id"), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
 
 class QuizAttempt(Base):
@@ -130,11 +131,13 @@ class QuizAttempt(Base):
     id = Column(Integer, primary_key=True, index=True)
     quiz_id = Column(Integer, ForeignKey("quizzes.id"), nullable=False)
     student_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    started_at = Column(DateTime, nullable=True)
+    completed = Column(Boolean, nullable=False, default=True, server_default="1")
     answers_json = Column(Text, nullable=False, default="[]")
     score = Column(Float, nullable=False, default=0)
     total = Column(Float, nullable=False, default=0)
     details_json = Column(Text, nullable=False, default="[]")
-    submitted_at = Column(DateTime, default=datetime.utcnow)
+    submitted_at = Column(DateTime, default=utcnow)
 
 
 class NoteFolder(Base):
@@ -143,7 +146,7 @@ class NoteFolder(Base):
     id = Column(Integer, primary_key=True, index=True)
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     name = Column(String, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
 
 class Note(Base):
@@ -158,5 +161,5 @@ class Note(Base):
     source_ref_id = Column(Integer, nullable=True)
     content_json = Column(Text, nullable=False, default="{}")
     meta_json = Column(Text, nullable=False, default="{}")
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)

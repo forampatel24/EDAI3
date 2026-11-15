@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 import os, uuid, shutil
 from ..database import get_db
 from ..models import User, Collection, Document
 from ..auth import get_current_user, require_role
 from ..config import settings
+from ..utils import sanitize_filename
 from ..services.ingestion import extract_text, better_chunk
 from ..services.embeddings import get_or_create_collection, embed_texts
 from ..services.evidence import retrieve_with_repair, abstain_response
@@ -19,22 +21,44 @@ async def upload_pdfs(collection_id: int, files: list[UploadFile] = File(...), d
     col = db.query(Collection).filter(Collection.id == collection_id, Collection.teacher_id == current_user.id).first()
     if not col:
         raise HTTPException(status_code=404, detail="Collection not found or not owned")
-    saved = []
+
+    # Validate every file before saving anything so a bad batch leaves no trace.
     for file in files:
-        if not file.filename.lower().endswith(".pdf"):
-            raise HTTPException(status_code=400, detail="Only PDFs allowed")
-        # save
-        uid = str(uuid.uuid4())[:8]
-        safe_name = f"{uid}_{file.filename}"
-        file_path = os.path.join(settings.UPLOAD_DIR, safe_name)
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-        # extract & chunk
-        pages_text, n_pages = extract_text(file_path)
-        chunks = better_chunk(pages_text)
-        if not chunks:
-            os.remove(file_path)
-            raise HTTPException(status_code=400, detail=f"No text extracted from {file.filename}")
+        if not file.filename or not file.filename.lower().endswith(".pdf"):
+            raise HTTPException(status_code=400, detail=f"Only PDFs allowed (got {file.filename or 'unnamed file'})")
+
+    prepared = []
+    saved_paths = []
+    try:
+        for file in files:
+            uid = str(uuid.uuid4())[:8]
+            safe_name = f"{uid}_{sanitize_filename(file.filename)}"
+            file_path = os.path.join(settings.UPLOAD_DIR, safe_name)
+            with open(file_path, "wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+            saved_paths.append(file_path)
+            pages_text, n_pages = extract_text(file_path)
+            chunks = better_chunk(pages_text)
+            if not chunks:
+                raise HTTPException(status_code=400, detail=f"No extractable text found in {file.filename} (is it a scanned PDF?)")
+            prepared.append((file, uid, safe_name, file_path, chunks, n_pages))
+    except HTTPException:
+        for p in saved_paths:
+            try:
+                os.remove(p)
+            except OSError:
+                pass
+        raise
+    except Exception as e:
+        for p in saved_paths:
+            try:
+                os.remove(p)
+            except OSError:
+                pass
+        raise HTTPException(status_code=500, detail=f"Failed to process upload: {e}")
+
+    saved = []
+    for file, uid, safe_name, file_path, chunks, n_pages in prepared:
         # embed & store
         texts = [c["text"] for c in chunks]
         embeddings = embed_texts(texts)
@@ -59,7 +83,7 @@ async def upload_pdfs(collection_id: int, files: list[UploadFile] = File(...), d
         try:
             new_metas = [{"source": file.filename, "page": c["page"], "collection_id": collection_id, "teacher_id": current_user.id, "doc_id": doc.id} for c in chunks]
             chroma_coll.update(ids=ids, metadatas=new_metas)
-        except:
+        except Exception:
             pass
         saved.append({"filename": file.filename, "pages": n_pages, "chunks": len(chunks), "doc_id": doc.id})
     return {"detail": f"Uploaded {len(saved)} files", "files": saved}
@@ -127,10 +151,22 @@ def generate(req: GenerateRequest, db: Session = Depends(get_db), current_user: 
 def catalog(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Student catalog: collections with PDF names only"""
     cols = db.query(Collection).all()
+    if not cols:
+        return []
+    counts = dict(
+        db.query(Document.collection_id, func.count(Document.id))
+        .filter(Document.collection_id.in_([c.id for c in cols]))
+        .group_by(Document.collection_id)
+        .all()
+    )
+    teachers = {u.id: u for u in db.query(User).filter(User.id.in_({c.teacher_id for c in cols})).all()}
+    docs = db.query(Document).filter(Document.collection_id.in_([c.id for c in cols])).all()
+    docs_by_col = {}
+    for d in docs:
+        docs_by_col.setdefault(d.collection_id, []).append(d.original_filename)
     out = []
     for c in cols:
-        docs = db.query(Document).filter(Document.collection_id == c.id).all()
-        teacher = db.query(User).filter(User.id == c.teacher_id).first()
+        teacher = teachers.get(c.teacher_id)
         out.append({
             "id": c.id,
             "name": c.name,
@@ -139,8 +175,8 @@ def catalog(db: Session = Depends(get_db), current_user: User = Depends(get_curr
             "description": c.description,
             "teacher_name": teacher.name if teacher else "Unknown",
             "teacher_email": teacher.email if teacher else "",
-            "pdf_names": [d.original_filename for d in docs],
-            "pdf_count": len(docs),
+            "pdf_names": docs_by_col.get(c.id, []),
+            "pdf_count": counts.get(c.id, 0),
             "created_at": c.created_at
         })
     return out
