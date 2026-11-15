@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import api from '../api'
+import WorkspaceEditor from './WorkspaceEditor'
 
 const KINDS = [
   { value: 'lesson_plan', label: 'Lesson Plan' },
@@ -25,22 +26,8 @@ export default function TeacherWorkspace({ myCollections }) {
   const [error, setError] = useState(null)
   const [result, setResult] = useState(null)
   const [items, setItems] = useState([])
-  const [editText, setEditText] = useState('')
-  const [editTitle, setEditTitle] = useState('')
+  const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
-
-  const saveToNotes = async () => {
-    if (!result || result.abstained) return
-    try {
-      const parsed = JSON.parse(editText)
-      await api.post('/notes', {
-        title: editTitle || result.title, collection_id: result.collection_id,
-        source_type: 'workspace', source_ref_id: result.id,
-        content: parsed, meta: { kind: result.kind, evidence: result.evidence_status },
-      })
-      setMsg('Saved to notes!')
-    } catch (e) { setMsg(e.response?.data?.detail || e.message) }
-  }
 
   const load = async () => {
     try {
@@ -65,8 +52,6 @@ export default function TeacherWorkspace({ myCollections }) {
         custom_instructions: custom || undefined,
       })
       setResult(res.data)
-      setEditText(JSON.stringify(res.data.content, null, 2))
-      setEditTitle(res.data.title)
       load()
     } catch (e) { setError(e.response?.data?.detail || e.message) }
     finally { setLoading(false) }
@@ -74,17 +59,31 @@ export default function TeacherWorkspace({ myCollections }) {
 
   const selectItem = (it) => {
     setResult(it)
-    setEditText(JSON.stringify(it.content, null, 2))
-    setEditTitle(it.title)
+    setMsg('')
   }
 
-  const saveEdit = async () => {
+  const saveEdits = async ({ title: newTitle, content }) => {
     if (!result) return
+    setSaving(true); setError(null); setMsg('')
     try {
-      const parsed = JSON.parse(editText)
-      const res = await api.put(`/workspace/${result.id}`, { title: editTitle, content: parsed })
+      const res = await api.put(`/workspace/${result.id}`, { title: newTitle, content })
       setResult(res.data); setMsg('Saved!'); load()
     } catch (e) { setError(e.response?.data?.detail || e.message) }
+    finally { setSaving(false) }
+  }
+
+  const saveToNotes = async ({ title: noteTitle, content }) => {
+    if (!result || result.abstained) return
+    setSaving(true); setError(null); setMsg('')
+    try {
+      await api.post('/notes', {
+        title: noteTitle || result.title, collection_id: result.collection_id,
+        source_type: 'workspace', source_ref_id: result.id,
+        content, meta: { kind: result.kind, evidence: result.evidence_status },
+      })
+      setMsg('Saved to notes!')
+    } catch (e) { setError(e.response?.data?.detail || e.message) }
+    finally { setSaving(false) }
   }
 
   const delItem = async (id) => {
@@ -153,13 +152,14 @@ export default function TeacherWorkspace({ myCollections }) {
                 <span style={{ fontSize: 12, background: result.status === 'ready' ? 'var(--mint)' : 'var(--card)', padding: '2px 8px', borderRadius: 10 }}>{result.status}</span>
               </div>
               {result.warning && <div style={{ background: 'var(--yellow-soft)', padding: 8, borderRadius: 6, marginBottom: 8, fontSize: 13 }}>⚠️ {result.warning}</div>}
-              <input value={editTitle} onChange={e => setEditTitle(e.target.value)} style={{ ...inp, width: '100%', marginBottom: 8 }} />
-              <textarea value={editText} onChange={e => setEditText(e.target.value)} rows={14} style={{ width: '100%', fontFamily: 'monospace', fontSize: 12 }} />
-              <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-                <button onClick={saveEdit} style={btn}>Save Edits</button>
-                <button onClick={saveToNotes} style={{ ...btn, background: 'var(--green)' }}>📌 Save to Notes</button>
-                <button onClick={publish} style={{ ...btn, background: 'var(--primary-dark)' }}>Mark Ready (Publish in Classroom ↓)</button>
-              </div>
+              <WorkspaceEditor
+                key={result.id}
+                item={result}
+                saving={saving}
+                onSave={saveEdits}
+                onSaveToNotes={saveToNotes}
+                onPublish={publish}
+              />
             </>}
         </div>
       )}
