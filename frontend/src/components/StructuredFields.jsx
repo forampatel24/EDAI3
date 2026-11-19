@@ -1,4 +1,4 @@
-import MathText from './MathText'
+import RichText, { InlineText } from './RichText'
 
 // Labels shared by the notes and workspace structured editors.
 const LABELS = {
@@ -54,22 +54,14 @@ function emptyLike(sample) {
   return ''
 }
 
-const fieldStyle = { display: 'flex', flexDirection: 'column', gap: 4 }
-const labelStyle = { fontSize: 12, fontWeight: 600, color: 'var(--ink)' }
-const card = { border: '1px solid var(--line)', borderRadius: 8, padding: 10, marginTop: 6, background: 'var(--paper)' }
-const smallDanger = { background: 'var(--pink-soft)', color: 'var(--red)', border: 'none', padding: '3px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 600 }
-const smallAdd = { marginTop: 8, background: 'var(--blue-soft)', color: 'var(--primary-dark)', border: 'none', padding: '5px 12px', borderRadius: 999, cursor: 'pointer', fontSize: 12, fontWeight: 600 }
-export const textAreaStyle = { width: '100%', fontSize: 13, fontFamily: 'inherit', padding: 8, borderRadius: 6, border: '1px solid var(--line-strong)', background: 'var(--card)', color: 'var(--ink)' }
-export const inputStyle = { width: '100%', fontSize: 13, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--line-strong)', background: 'var(--card)', color: 'var(--ink)' }
-
 function StringEditor({ value, onChange, rows }) {
-  return <textarea rows={rows} value={value} onChange={(e) => onChange(e.target.value)} style={textAreaStyle} />
+  return <textarea rows={rows} value={value} onChange={(e) => onChange(e.target.value)} />
 }
 
 function PrimitiveEditor({ value, onChange }) {
   if (typeof value === 'boolean') {
     return (
-      <select value={String(value)} onChange={(e) => onChange(e.target.value === 'true')} style={inputStyle}>
+      <select value={String(value)} onChange={(e) => onChange(e.target.value === 'true')}>
         <option value="true">true</option>
         <option value="false">false</option>
       </select>
@@ -88,7 +80,6 @@ function PrimitiveEditor({ value, onChange }) {
           onChange(raw)
         }
       }}
-      style={inputStyle}
     />
   )
 }
@@ -110,13 +101,13 @@ function ItemListEditor({ label, items, onChange }) {
   const addItem = () => onChange([...items, emptyLike(items[items.length - 1])])
 
   return (
-    <div style={fieldStyle}>
-      <span style={labelStyle}>{label} ({items.length})</span>
+    <div className="field">
+      <span className="field-label">{label} ({items.length})</span>
       {items.map((item, i) => (
-        <div key={i} style={card}>
+        <div key={i} className="sub-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)' }}>#{i + 1}</span>
-            <button type="button" onClick={() => removeItem(i)} style={smallDanger}>Remove</button>
+            <button type="button" onClick={() => removeItem(i)} className="btn-tiny btn-danger">Remove</button>
           </div>
           {typeof item === 'object' && item !== null ? (
             <ObjectFields value={item} onChange={(v) => setItem(i, v)} />
@@ -125,14 +116,14 @@ function ItemListEditor({ label, items, onChange }) {
           )}
         </div>
       ))}
-      <button type="button" onClick={addItem} style={smallAdd}>+ Add item</button>
+      <button type="button" onClick={addItem} className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-start' }}>+ Add item</button>
     </div>
   )
 }
 
 function ObjectFields({ value, onChange }) {
   return (
-    <div style={{ display: 'grid', gap: 8 }}>
+    <div className="field-list">
       {Object.entries(value).map(([k, v]) => (
         <ValueEditor key={k} label={labelFor(k)} value={v} onChange={(nv) => onChange({ ...value, [k]: nv })} />
       ))}
@@ -143,16 +134,16 @@ function ObjectFields({ value, onChange }) {
 export function ValueEditor({ label, value, onChange }) {
   if (typeof value === 'string') {
     return (
-      <label style={fieldStyle}>
-        <span style={labelStyle}>{label}</span>
+      <label className="field">
+        <span className="field-label">{label}</span>
         <StringEditor value={value} onChange={onChange} rows={Math.min(10, Math.max(2, Math.ceil(value.length / 80) || 2))} />
       </label>
     )
   }
   if (typeof value === 'number' || typeof value === 'boolean') {
     return (
-      <label style={fieldStyle}>
-        <span style={labelStyle}>{label}</span>
+      <label className="field">
+        <span className="field-label">{label}</span>
         <PrimitiveEditor value={value} onChange={onChange} />
       </label>
     )
@@ -160,8 +151,8 @@ export function ValueEditor({ label, value, onChange }) {
   if (Array.isArray(value)) {
     if (value.length === 0 || value.every((x) => typeof x === 'string')) {
       return (
-        <label style={fieldStyle}>
-          <span style={labelStyle}>{label}</span>
+        <label className="field">
+          <span className="field-label">{label}</span>
           <StringListEditor value={value} onChange={onChange} />
         </label>
       )
@@ -173,8 +164,8 @@ export function ValueEditor({ label, value, onChange }) {
   }
   // null / undefined
   return (
-    <label style={fieldStyle}>
-      <span style={labelStyle}>{label}</span>
+    <label className="field">
+      <span className="field-label">{label}</span>
       <PrimitiveEditor value={value} onChange={onChange} />
     </label>
   )
@@ -182,25 +173,25 @@ export function ValueEditor({ label, value, onChange }) {
 
 function ReadValue({ value }) {
   if (typeof value === 'string') {
-    return <MathText style={{ whiteSpace: 'pre-wrap', fontSize: 13.5 }}>{value}</MathText>
+    return <RichText style={{ fontSize: 13.5 }}>{value}</RichText>
   }
   if (Array.isArray(value)) {
     if (value.every((x) => typeof x === 'string')) {
       return (
-        <ul style={{ margin: '4px 0', paddingLeft: 20 }}>
-          {value.map((x, i) => <li key={i} style={{ marginBottom: 4 }}><MathText as="span">{x}</MathText></li>)}
+        <ul className="plain" style={{ margin: '4px 0', paddingLeft: 20 }}>
+          {value.map((x, i) => <li key={i} style={{ marginBottom: 4 }}><InlineText>{x}</InlineText></li>)}
         </ul>
       )
     }
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div className="field-list">
         {value.map((item, i) => (
-          <div key={i} style={card}>
+          <div key={i} className="sub-card">
             <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)' }}>#{i + 1}</span>
             {typeof item === 'object' && item !== null ? (
               <ReadObject value={item} />
             ) : (
-              <MathText as="span">{String(item)}</MathText>
+              <InlineText>{String(item)}</InlineText>
             )}
           </div>
         ))}
@@ -215,10 +206,10 @@ function ReadValue({ value }) {
 
 export function ReadObject({ value }) {
   return (
-    <div style={{ display: 'grid', gap: 8 }}>
+    <div className="field-list">
       {Object.entries(value).map(([k, v]) => (
         <div key={k}>
-          <div style={labelStyle}>{labelFor(k)}</div>
+          <div className="field-label">{labelFor(k)}</div>
           <ReadValue value={v} />
         </div>
       ))}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { labelFor, ValueEditor, ReadObject, inputStyle, textAreaStyle } from './StructuredFields'
+import { labelFor, ValueEditor, ReadObject } from './StructuredFields'
 
 export default function NoteEditor({ note, folders, onSave, onCancel, saving }) {
   const [title, setTitle] = useState(note.title)
@@ -39,49 +39,53 @@ export default function NoteEditor({ note, folders, onSave, onCancel, saving }) 
   ]
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, height: '100%' }}>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+    <div className="editor-stack" style={{ height: '100%' }}>
+      <div className="editor-toolbar" style={{ flexWrap: 'wrap', gap: 10 }}>
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Note title"
-          style={{ ...inputStyle, flex: 1, minWidth: 200, fontSize: 14.5, fontWeight: 600 }}
+          style={{ flex: 1, minWidth: 220, fontSize: 15, fontWeight: 600 }}
         />
-        <select value={folderId} onChange={(e) => setFolderId(e.target.value)} style={inputStyle}>
+        <select value={folderId} onChange={(e) => setFolderId(e.target.value)} style={{ minWidth: 180 }}>
           {folderOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
-        <button type="button" onClick={() => { setJsonMode(!jsonMode); setJsonError('') }} style={{ background: jsonMode ? 'var(--primary)' : 'var(--primary-dark)', color: 'white', border: 'none', padding: '6px 12px', borderRadius: 999, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+        <button type="button" onClick={() => { setJsonMode(!jsonMode); setJsonError('') }} className={`btn btn-sm ${jsonMode ? 'btn-primary' : 'btn-ghost'}`}>
           {jsonMode ? 'Form mode' : 'JSON mode'}
         </button>
-        <button type="button" onClick={() => setPreview(!preview)} style={{ background: preview ? 'var(--green)' : 'var(--primary-dark)', color: 'white', border: 'none', padding: '6px 12px', borderRadius: 999, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+        <button type="button" onClick={() => setPreview(!preview)} className={`btn btn-sm ${preview ? 'btn-primary' : 'btn-ghost'}`}>
           {preview ? 'Editor' : 'Preview'}
         </button>
       </div>
 
-      {jsonError && <div style={{ color: 'var(--red)', background: 'var(--pink-soft)', padding: 8, borderRadius: 6, fontSize: 12 }}>{jsonError}</div>}
+      {jsonError && <div className="banner banner-bad"><span>{jsonError}</span></div>}
 
       {preview ? (
-        <div style={{ flex: 1, overflow: 'auto', padding: 12, background: 'var(--paper)', borderRadius: 8, border: '1px solid var(--line)' }}>
+        <div className="editor-pane" style={{ flex: 1, minHeight: 300 }}>
           <ReadObject value={content || {}} />
         </div>
       ) : jsonMode ? (
-        <textarea value={jsonText} onChange={(e) => setJsonText(e.target.value)} style={{ ...textAreaStyle, flex: 1, fontFamily: 'monospace', fontSize: 12, resize: 'vertical', minHeight: 300 }} />
+        <textarea
+          value={jsonText}
+          onChange={(e) => setJsonText(e.target.value)}
+          style={{ flex: 1, fontFamily: 'ui-monospace, monospace', fontSize: 13, resize: 'vertical', minHeight: 300, lineHeight: 1.6 }}
+        />
       ) : (
-        <div style={{ flex: 1, overflow: 'auto', display: 'grid', gap: 12 }}>
-          {Object.entries(content || {}).map(([k, v]) => (
-            <ValueEditor key={k} label={labelFor(k)} value={v} onChange={(nv) => setContent({ ...content, [k]: nv })} />
-          ))}
-          {(content && Object.keys(content).length === 0) && <div style={{ color: 'var(--muted)', fontSize: 13, textAlign: 'center', padding: 20 }}>No content yet — edit in JSON mode or add fields programmatically.</div>}
+        <div className="editor-pane scroll" style={{ flex: 1, minHeight: 300 }}>
+          <div className="field-list">
+            {Object.entries(content || {}).map(([k, v]) => (
+              <ValueEditor key={k} label={labelFor(k)} value={v} onChange={(nv) => setContent({ ...content, [k]: nv })} />
+            ))}
+            {(content && Object.keys(content).length === 0) && (
+              <div className="meta-hint">No content yet — edit in JSON mode or add fields programmatically.</div>
+            )}
+          </div>
         </div>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
-        <button type="button" onClick={onCancel} disabled={saving} style={{ background: 'var(--card)', color: 'var(--ink)', border: '1px solid var(--line)', padding: '8px 18px', borderRadius: 999, cursor: 'pointer', fontWeight: 600 }}>
-          Cancel
-        </button>
-        <button type="button" onClick={handleSave} disabled={saving} style={{ background: 'var(--primary)', color: 'white', border: 'none', padding: '8px 18px', borderRadius: 999, cursor: 'pointer', fontWeight: 600, opacity: saving ? 0.6 : 1 }}>
-          {saving ? 'Saving…' : 'Save'}
-        </button>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--line)' }}>
+        <button type="button" onClick={onCancel} disabled={saving} className="btn btn-ghost">Cancel</button>
+        <button type="button" onClick={handleSave} disabled={saving} className="btn btn-primary">{saving ? 'Saving…' : 'Save'}</button>
       </div>
     </div>
   )

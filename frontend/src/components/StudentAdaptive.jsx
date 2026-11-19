@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import api from '../api'
-import MathText from './MathText'
+import { InlineText } from './RichText'
+import Icon from './Icon'
 
 export default function StudentAdaptive({ collections }) {
   const [overview, setOverview] = useState(null)
@@ -34,70 +35,118 @@ export default function StudentAdaptive({ collections }) {
     finally { setLoading(false) }
   }
 
+  const getConceptStatus = (accuracy) => {
+    if (accuracy >= 0.7) return { level: 'mastered', color: 'mint', label: 'Mastered' }
+    if (accuracy >= 0.4) return { level: 'mixed', color: 'amber', label: 'Needs practice' }
+    return { level: 'struggling', color: 'pink', label: 'Review needed' }
+  }
+
   return (
     <div className="card section-card">
       <h3>Adaptive learning — practice what you need</h3>
+      <p className="card-sub">Targeted practice, grounded in your collection and tuned to how you've performed so far.</p>
+
       {!overview || overview.total_attempts === 0 ? (
-        <p style={{ fontSize: 13, color: 'var(--muted)' }}>Attempt a classroom quiz first — your performance here will drive personalized practice.</p>
+        <div className="empty-state" style={{ marginBottom: 18 }}>
+          <div className="empty-ico"><Icon name="target" /></div>
+          <div className="empty-title">No attempts yet</div>
+          <div className="empty-text">Attempt a classroom quiz first — your performance here will drive personalized practice.</div>
+        </div>
       ) : (
         <>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-            <span style={{ background: 'var(--blue-soft)', padding: '4px 10px', borderRadius: 12, fontSize: 12 }}>
-              Accuracy: {(overview.overall_accuracy * 100).toFixed(0)}% over {overview.total_attempts} answers
-            </span>
-            <span style={{ background: 'var(--yellow-soft)', border: '1px solid var(--yellow-border)', padding: '4px 10px', borderRadius: 999, fontSize: 12 }}>
-              Suggested difficulty: {overview.suggested_difficulty}
-            </span>
+          <div className="ground-pills" style={{ marginBottom: 12 }}>
+            <span className="pill pill-info"><Icon name="chart" />Accuracy: {(overview.overall_accuracy * 100).toFixed(0)}% over {overview.total_attempts} answers</span>
+            <span className="pill pill-warn"><Icon name="target" />Suggested difficulty: {overview.suggested_difficulty}</span>
           </div>
-          {overview.concepts.map(c => (
-            <div key={c.concept} style={{ padding: 8, border: '1px solid var(--line)', borderRadius: 6, marginBottom: 6, background: c.possible_misconception ? 'var(--yellow-soft)' : 'var(--paper)' }}>
-              <b>{c.concept}</b>
-              <span style={{ fontSize: 12, color: 'var(--muted)' }}> • {c.correct}/{c.attempts} ({(c.accuracy * 100).toFixed(0)}%)</span>
-              {c.possible_misconception && <span style={{ fontSize: 12, color: 'var(--yellow-ink)' }}> • ⚠️ possible misconception — practice recommended</span>}
-            </div>
-          ))}
+          {overview.concepts.map((c) => {
+            const status = getConceptStatus(c.accuracy)
+            return (
+              <div key={c.concept} className={`concept-row${status.level === 'mixed' ? ' warn' : status.level === 'struggling' ? ' struggling' : ''}`}>
+                <div style={{ flex: 1 }}>
+                  <b>{c.concept}</b>
+                  <div className="meta-line" style={{ marginTop: 2 }}>
+                    {c.correct}/{c.attempts} ({(c.accuracy * 100).toFixed(0)}%)
+                    <span className="dot">•</span>
+                    <span className={`pill pill-${status.color}`} style={{ fontSize: 11, padding: '2px 8px' }}>{status.label}</span>
+                  </div>
+                </div>
+                {c.possible_misconception && (
+                  <span className="pill pill-warn" style={{ flexShrink: 0 }}><Icon name="alert" size={13} />Misconception — practice</span>
+                )}
+              </div>
+            )
+          })}
         </>
       )}
 
-      <h4>Follow-up Practice (grounded in your collection)</h4>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-        <select value={collectionId} onChange={e => setCollectionId(e.target.value)} style={{ ...inp, flex: 1 }}>
-          <option value="">Select Collection</option>
-          {(collections || []).map(c => <option key={c.id} value={c.id}>{c.name} ({c.subject})</option>)}
-        </select>
-        <select value={concept} onChange={e => setConcept(e.target.value)} style={{ ...inp, flex: 1 }}>
-          <option value="">Select concept</option>
-          {(overview?.concepts || []).map(c => <option key={c.concept} value={c.concept}>{c.concept} ({(c.accuracy * 100).toFixed(0)}%)</option>)}
-          <option value="__custom">Type my own…</option>
-        </select>
-        <select value={difficulty} onChange={e => setDifficulty(e.target.value)} style={inp}>
-          <option value="auto">Auto (from my performance)</option>
-          <option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option>
-        </select>
+      <h4 style={{ marginTop: 20 }}>Follow-up practice</h4>
+      <div className="toolbar">
+        <label className="field">
+          <span className="field-label">Collection</span>
+          <select value={collectionId} onChange={(e) => setCollectionId(e.target.value)}>
+            <option value="">Select collection</option>
+            {(collections || []).map((c) => <option key={c.id} value={c.id}>{c.name} ({c.subject})</option>)}
+          </select>
+        </label>
+        <label className="field">
+          <span className="field-label">Concept</span>
+          <select value={concept} onChange={(e) => setConcept(e.target.value)}>
+            <option value="">Select concept</option>
+            {(overview?.concepts || []).map((c) => (
+              <option key={c.concept} value={c.concept}>{c.concept} ({(c.accuracy * 100).toFixed(0)}%)</option>
+            ))}
+            <option value="__custom">Type my own…</option>
+          </select>
+        </label>
+        <label className="field w-170">
+          <span className="field-label">Difficulty</span>
+          <select value={difficulty} onChange={(e) => setDifficulty(e.target.value)}>
+            <option value="auto">Auto (my performance)</option>
+            <option value="easy">Easy</option>
+            <option value="medium">Medium</option>
+            <option value="hard">Hard</option>
+          </select>
+        </label>
       </div>
       {concept === '__custom' && (
-        <input placeholder="Type concept e.g., Kinetic Energy" value={customConcept} onChange={e => setCustomConcept(e.target.value)} style={{ ...inp, width: '100%', marginBottom: 8 }} />
+        <label className="field" style={{ marginBottom: 12 }}>
+          <span className="field-label">Your concept</span>
+          <input placeholder="e.g., Kinetic Energy" value={customConcept} onChange={(e) => setCustomConcept(e.target.value)} />
+        </label>
       )}
-      <button onClick={genPractice} disabled={loading} style={{ ...btn, opacity: loading ? 0.6 : 1 }}>{loading ? 'Generating...' : 'Generate Practice'}</button>
-      {error && <div style={{ marginTop: 8, color: 'var(--red)', background: 'var(--pink-soft)', padding: 8, borderRadius: 10 }}>{error}</div>}
+      <button onClick={genPractice} disabled={loading} className="btn btn-primary">
+        {loading ? <><span className="spin" aria-hidden="true" /> Generating…</> : <><Icon name="sparkles" /> Generate practice</>}
+      </button>
+
+      {error && <div className="banner banner-bad" style={{ marginTop: 12 }}><Icon name="alert" /><span>{error}</span></div>}
+
       {practice && (
-        <div style={{ marginTop: 12 }}>
-          {practice.abstained
-            ? <div style={{ background: 'var(--blue-soft)', padding: 10, borderRadius: 6 }}>🛑 {practice.warning}</div>
-            : <>
-              <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>Difficulty: {practice.difficulty} • Evidence: {practice.evidence_score?.toFixed(2)}</div>
+        <div style={{ marginTop: 16 }}>
+          {practice.abstained ? (
+            <div className="banner banner-info"><Icon name="shield" /><span>{practice.warning}</span></div>
+          ) : (
+            <>
+              <div className="ground-pills" style={{ marginBottom: 12 }}>
+                <span className="pill pill-info"><Icon name="target" />Difficulty: {practice.difficulty}</span>
+                {practice.evidence_score != null && (
+                  <span className="pill pill-muted"><Icon name="chart" />Evidence {practice.evidence_score.toFixed(2)}</span>
+                )}
+              </div>
               {practice.questions.map((q, i) => (
-                <div key={i} style={{ background: 'var(--paper)', padding: 10, borderRadius: 6, marginBottom: 6, border: '1px solid var(--line)' }}>
-                  <MathText as="div" style={{ fontWeight: 600 }}>{'Q' + (i + 1) + ': ' + q.question}</MathText>
-                  {q.options?.length > 0 && <ul>{q.options.map((o, j) => <li key={j} style={{ fontSize: 13 }}><MathText as="span">{o}</MathText></li>)}</ul>}
-                  <div style={{ fontSize: 12, color: 'var(--green)' }}>Answer: <MathText as="span">{q.answer}</MathText></div>
+                <div className="q-item" key={i}>
+                  <div className="q-stem">Q{i + 1}. <InlineText>{q.question}</InlineText></div>
+                  {q.options?.length > 0 && (
+                    <ul className="q-options">
+                      {q.options.map((o, j) => <li key={j}><InlineText>{o}</InlineText></li>)}
+                    </ul>
+                  )}
+                  <div className="q-answer">Answer: <InlineText>{q.answer}</InlineText></div>
                 </div>
               ))}
-            </>}
+            </>
+          )}
         </div>
       )}
     </div>
   )
 }
-const inp = {}
-const btn = { background: 'var(--primary)', color: 'white', border: 'none', padding: '10px 18px', borderRadius: 999, cursor: 'pointer', fontWeight: 600, fontSize: 13.5 }

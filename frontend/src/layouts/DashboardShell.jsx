@@ -31,11 +31,13 @@ export default function DashboardShell({ base, roleLabel, nav, children }) {
         </nav>
       </aside>
       <main className="dash-main">
-        <header className="dash-head">
-          <h1>{active.label}</h1>
-          <p>{active.desc}</p>
-        </header>
-        {children}
+        <div key={location.pathname} className="route-enter">
+          <header className="dash-head">
+            <h1>{active.label}</h1>
+            <p>{active.desc}</p>
+          </header>
+          {children}
+        </div>
       </main>
     </div>
   )
