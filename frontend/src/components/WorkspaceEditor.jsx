@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
-import { labelFor, ValueEditor, ReadObject, inputStyle, textAreaStyle } from './StructuredFields'
-
-const btn = { background: 'var(--primary)', color: 'white', border: 'none', padding: '9px 16px', borderRadius: 999, cursor: 'pointer', fontWeight: 600, fontSize: 13.5 }
+import { labelFor, ValueEditor, ReadObject } from './StructuredFields'
+import Icon from './Icon'
 
 export default function WorkspaceEditor({ item, saving, onSave, onSaveToNotes, onPublish }) {
   const [title, setTitle] = useState(item.title || '')
@@ -58,43 +57,51 @@ export default function WorkspaceEditor({ item, saving, onSave, onSaveToNotes, o
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+    <div className="editor-stack">
+      <div className="editor-toolbar">
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Title"
-          style={{ ...inputStyle, flex: 1, minWidth: 220, fontSize: 14.5, fontWeight: 600 }}
+          style={{ flex: 1, minWidth: 220, fontSize: 14.5, fontWeight: 600 }}
         />
-        <button type="button" onClick={toggleJsonMode} style={{ background: jsonMode ? 'var(--primary)' : 'var(--primary-dark)', color: 'white', border: 'none', padding: '6px 12px', borderRadius: 999, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+        <button type="button" onClick={toggleJsonMode} className={`btn btn-sm ${jsonMode ? 'btn-primary' : 'btn-ghost'}`}>
           {jsonMode ? 'Form mode' : 'JSON mode'}
         </button>
-        <button type="button" onClick={() => setPreview(!preview)} style={{ background: preview ? 'var(--green)' : 'var(--primary-dark)', color: 'white', border: 'none', padding: '6px 12px', borderRadius: 999, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+        <button type="button" onClick={() => setPreview(!preview)} className={`btn btn-sm ${preview ? 'btn-primary' : 'btn-ghost'}`}>
           {preview ? 'Editor' : 'Preview'}
         </button>
       </div>
 
-      {jsonError && <div style={{ color: 'var(--red)', background: 'var(--pink-soft)', padding: 8, borderRadius: 6, fontSize: 12 }}>{jsonError}</div>}
+      {jsonError && <div className="banner banner-bad"><span>{jsonError}</span></div>}
 
       {preview ? (
-        <div style={{ maxHeight: '60vh', overflow: 'auto', padding: 12, background: 'var(--paper)', borderRadius: 8, border: '1px solid var(--line)' }}>
+        <div className="editor-pane scroll">
           <ReadObject value={content || {}} />
         </div>
       ) : jsonMode ? (
-        <textarea value={jsonText} onChange={(e) => setJsonText(e.target.value)} style={{ ...textAreaStyle, fontFamily: 'monospace', fontSize: 12, resize: 'vertical', minHeight: 300 }} />
+        <textarea
+          value={jsonText}
+          onChange={(e) => setJsonText(e.target.value)}
+          style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12, resize: 'vertical', minHeight: 300 }}
+        />
       ) : (
-        <div style={{ maxHeight: '60vh', overflow: 'auto', display: 'grid', gap: 12 }}>
-          {Object.entries(content || {}).map(([k, v]) => (
-            <ValueEditor key={k} label={labelFor(k)} value={v} onChange={(nv) => setContent({ ...content, [k]: nv })} />
-          ))}
-          {(content && Object.keys(content).length === 0) && <div style={{ color: 'var(--muted)', fontSize: 13, textAlign: 'center', padding: 20 }}>No content — edit in JSON mode.</div>}
+        <div className="editor-pane scroll">
+          <div className="field-list">
+            {Object.entries(content || {}).map(([k, v]) => (
+              <ValueEditor key={k} label={labelFor(k)} value={v} onChange={(nv) => setContent({ ...content, [k]: nv })} />
+            ))}
+            {(content && Object.keys(content).length === 0) && (
+              <div className="meta-hint">No content yet — edit in JSON mode.</div>
+            )}
+          </div>
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button type="button" onClick={doSave} disabled={saving} style={{ ...btn, opacity: saving ? 0.6 : 1 }}>{saving ? 'Saving…' : 'Save Edits'}</button>
-        <button type="button" onClick={doSaveToNotes} disabled={saving} style={{ ...btn, background: 'var(--green)', opacity: saving ? 0.6 : 1 }}>📌 Save to Notes</button>
-        <button type="button" onClick={onPublish} disabled={saving} style={{ ...btn, background: 'var(--primary-dark)' }}>Mark Ready (Publish in Classroom ↓)</button>
+      <div className="editor-toolbar">
+        <button type="button" onClick={doSave} disabled={saving} className="btn btn-primary">{saving ? 'Saving…' : 'Save Edits'}</button>
+        <button type="button" onClick={doSaveToNotes} disabled={saving} className="btn btn-ghost"><Icon name="pin" size={15} /> Save to Notes</button>
+        <button type="button" onClick={onPublish} disabled={saving} className="btn btn-ghost">Mark Ready (Publish in Classroom)</button>
       </div>
     </div>
   )

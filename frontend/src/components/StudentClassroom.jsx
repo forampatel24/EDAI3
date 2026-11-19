@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import api, { API_BASE } from '../api'
-import MathText from './MathText'
+import { InlineText } from './RichText'
+import Icon from './Icon'
 
 function fmt(secs) {
   const m = Math.floor(secs / 60)
@@ -143,99 +144,152 @@ export default function StudentClassroom() {
 
   return (
     <div className="card section-card">
-      <h3>My classrooms — assignments &amp; quizzes</h3>
-      <form onSubmit={join} style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-        <input placeholder="Enter class code (e.g., AB12CD)" value={code} onChange={e => setCode(e.target.value.toUpperCase())} style={{ ...inp, flex: 1 }} />
-        <button type="submit" style={btn}>Join Class</button>
-      </form>
-      {msg && <div style={{ background: 'var(--mint)', padding: 8, borderRadius: 6, fontSize: 13, marginBottom: 8 }}>{msg}</div>}
-      {error && <div style={{ color: 'var(--red)', background: 'var(--pink-soft)', padding: 8, borderRadius: 6, marginBottom: 8 }}>{error}</div>}
+      <h3>My classrooms — assignments & quizzes</h3>
+      <p className="card-sub">Join with the code your teacher shares, then submit work and take timed quizzes here.</p>
 
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
-        {joined.length === 0 && <span style={{ color: 'var(--faint)' }}>Not in any classroom yet. Ask your teacher for the code.</span>}
-        {joined.map(c => (
-          <button key={c.id} onClick={() => select(c)} style={{ ...btn, background: selected?.id === c.id ? 'var(--primary)' : 'var(--blue-soft)', color: selected?.id === c.id ? 'white' : 'var(--primary-dark)' }}>
-            {c.name} ({c.subject})
-          </button>
-        ))}
-      </div>
+      <form onSubmit={join} className="toolbar">
+        <label className="field" style={{ flex: 1, minWidth: 200 }}>
+          <span className="field-label">Class code</span>
+          <input placeholder="e.g., AB12CD" value={code} onChange={e => setCode(e.target.value.toUpperCase())} />
+        </label>
+        <button type="submit" className="btn btn-primary">Join class</button>
+      </form>
+
+      {msg && <div className="banner banner-ok"><Icon name="check" /><span>{msg}</span></div>}
+      {error && <div className="banner banner-bad"><Icon name="alert" /><span>{error}</span></div>}
+
+      {joined.length === 0 ? (
+        <div className="empty-state" style={{ marginBottom: 14 }}>
+          <div className="empty-ico"><Icon name="users" /></div>
+          <div className="empty-title">Not in a classroom yet</div>
+          <div className="empty-text">Ask your teacher for the class code and join above.</div>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+          {joined.map(c => (
+            <button
+              key={c.id}
+              onClick={() => select(c)}
+              className={`room-card${selected?.id === c.id ? ' active' : ''}`}
+              style={{ marginBottom: 0, textAlign: 'left' }}
+            >
+              <b>{c.name}</b> <span className="meta-line" style={{ display: 'inline' }}>· {c.subject}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {selected && (
         <div>
           <h4>{selected.name} — {selected.subject} ({selected.class_level})</h4>
-          <h5>📚 Assignments ({assignments.length})</h5>
+
+          <h5 className="sp-title" style={{ margin: '16px 0 8px' }}><Icon name="book" /> Assignments ({assignments.length})</h5>
+          {assignments.length === 0 && <div className="meta-hint">No assignments yet.</div>}
           {assignments.map(a => (
-            <div key={a.id} style={{ border: '1px solid var(--line)', borderRadius: 8, padding: 10, marginBottom: 8 }}>
-              <b>{a.title}</b>
-              <span style={{ fontSize: 12, color: a.my_submitted ? 'var(--green)' : 'var(--muted)' }}> • {a.my_submitted ? `Submitted${a.my_score != null ? ` • Score: ${a.my_score}` : ''}` : 'Not submitted'}</span>
-              {a.deadline && <span style={{ fontSize: 12, color: 'var(--muted)' }}> • due {new Date(a.deadline).toLocaleString()}</span>}
-              {a.description && <div style={{ fontSize: 13, marginTop: 4 }}>{a.description}</div>}
-              {a.instructions && <div style={{ fontSize: 12, color: 'var(--ink)', marginTop: 4, whiteSpace: 'pre-wrap' }}>{a.instructions}</div>}
-              {a.attachment_filename && <div style={{ fontSize: 12 }}><a href={`${API_BASE}/uploads/assignments/${a.attachment_file}`} target="_blank" rel="noreferrer">📎 {a.attachment_filename}</a></div>}
-              <textarea placeholder="Write your answer..." value={subText[a.id] || ''} onChange={e => setSubText(s => ({ ...s, [a.id]: e.target.value }))} rows={3} style={{ width: '100%', marginTop: 8 }} />
-              <div style={{ display: 'flex', gap: 8, marginTop: 6, alignItems: 'center' }}>
-                <input type="file" onChange={e => setSubFile(s => ({ ...s, [a.id]: e.target.files[0] }))} />
-                <button onClick={() => submitAssignment(a.id)} style={btn}>Submit</button>
+            <div key={a.id} className="list-card">
+              <div className="list-card-head">
+                <Icon name="file" />
+                <b>{a.title}</b>
+                <span className={`pill ${a.my_submitted ? 'pill-ok' : 'pill-muted'}`}>
+                  {a.my_submitted ? `Submitted${a.my_score != null ? ` · ${a.my_score}` : ''}` : 'Not submitted'}
+                </span>
               </div>
-              {mySubs[a.id]?.feedback && <div style={{ fontSize: 12, marginTop: 4, background: 'var(--mint)', padding: 6, borderRadius: 4 }}>Feedback: {mySubs[a.id].feedback}</div>}
+              {a.deadline && <div className="meta-line"><Icon name="clock" size={13} /> due {new Date(a.deadline).toLocaleString()}</div>}
+              {a.description && <div style={{ fontSize: 13, marginTop: 6 }}>{a.description}</div>}
+              {a.instructions && <div style={{ fontSize: 12.5, color: 'var(--ink)', marginTop: 4, whiteSpace: 'pre-wrap' }}>{a.instructions}</div>}
+              {a.attachment_filename && (
+                <div style={{ fontSize: 12, marginTop: 4 }}>
+                  <a href={`${API_BASE}/uploads/assignments/${a.attachment_file}`} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}>
+                    <Icon name="paperclip" size={13} /> {a.attachment_filename}
+                  </a>
+                </div>
+              )}
+              <textarea placeholder="Write your answer…" value={subText[a.id] || ''} onChange={e => setSubText(s => ({ ...s, [a.id]: e.target.value }))} rows={3} style={{ marginTop: 8 }} />
+              <div className="toolbar" style={{ marginBottom: 0 }}>
+                <input type="file" onChange={e => setSubFile(s => ({ ...s, [a.id]: e.target.files[0] }))} />
+                <button onClick={() => submitAssignment(a.id)} className="btn btn-primary btn-sm">Submit</button>
+              </div>
+              {mySubs[a.id]?.feedback && (
+                <div className="fb-card ok">
+                  <div className="fb-head ok"><Icon name="check" />Feedback</div>
+                  {mySubs[a.id].feedback}
+                </div>
+              )}
             </div>
           ))}
 
-          <h5>📝 Quizzes ({quizzes.length})</h5>
+          <h5 className="sp-title" style={{ margin: '20px 0 8px' }}><Icon name="clipboard" /> Quizzes ({quizzes.length})</h5>
+          {quizzes.length === 0 && <div className="meta-hint">No quizzes yet.</div>}
           {quizzes.map(q => {
             const sess = quizSession[q.id]
             const rem = remainingFor(q.id)
             const maxed = q.max_attempts > 0 && q.my_attempts >= q.max_attempts
             return (
-              <div key={q.id} style={{ border: '1px solid var(--line)', borderRadius: 8, padding: 10, marginBottom: 8 }}>
-                <b>{q.title}</b>
-                <span style={{ fontSize: 12, color: 'var(--muted)' }}> • {q.questions.length} questions{q.duration_minutes ? ` • ${q.duration_minutes} min` : ''}{q.max_attempts ? ` • max ${q.max_attempts} attempt${q.max_attempts === 1 ? '' : 's'}` : ''}{q.my_attempts ? ` • attempted ${q.my_attempts}x${q.my_best != null ? ` • best ${q.my_best}` : ''}` : ''}</span>
-                {q.topic && <div style={{ fontSize: 12, color: 'var(--muted)' }}>Topic: {q.topic}</div>}
+              <div key={q.id} className="list-card">
+                <div className="list-card-head">
+                  <Icon name="clipboard" />
+                  <b>{q.title}</b>
+                </div>
+                <div className="meta-line">
+                  {q.questions.length} questions
+                  {q.duration_minutes ? <> <span className="dot">·</span> {q.duration_minutes} min</> : ''}
+                  {q.max_attempts ? <> <span className="dot">·</span> max {q.max_attempts} attempt{q.max_attempts === 1 ? '' : 's'}</> : ''}
+                  {q.my_attempts ? <> <span className="dot">·</span> attempted {q.my_attempts}x{q.my_best != null ? ` · best ${q.my_best}` : ''}</> : ''}
+                </div>
+                {q.topic && <div className="meta-line">Topic: {q.topic}</div>}
 
                 {sess ? (
                   <>
                     {rem != null && (
-                      <div style={{ marginTop: 6, background: rem <= 60 ? 'var(--pink-soft)' : 'var(--yellow-soft)', padding: '4px 10px', borderRadius: 999, display: 'inline-block', fontSize: 13, fontWeight: 700 }}>
-                        ⏱ {fmt(rem)} left
-                      </div>
+                      <div className={`timer-pill${rem <= 60 ? ' urgent' : ''}`}><Icon name="clock" />{fmt(rem)} left</div>
                     )}
                     {q.questions.map((qq, i) => (
-                      <div key={i} style={{ marginTop: 8, background: 'var(--paper)', padding: 8, borderRadius: 6 }}>
-                        <MathText as="div" style={{ fontWeight: 600 }}>{'Q' + (i + 1) + ': ' + qq.question}</MathText> <span style={{ fontSize: 11, color: 'var(--muted)' }}>({qq.marks || 1} marks)</span>
+                      <div key={i} className="quiz-q">
+                        <div className="quiz-q-label">Q{i + 1}: <InlineText>{qq.question}</InlineText> <span className="marks">({qq.marks || 1} marks)</span></div>
                         {qq.options && qq.options.length > 0 ? (
                           <div style={{ marginTop: 4 }}>
                             {qq.options.map((o, j) => (
-                              <label key={j} style={{ display: 'block', fontSize: 13, padding: 2 }}>
-                                <input type="radio" name={`${q.id}_${i}`} checked={answers[`${q.id}_${i}`] === o} onChange={() => setAnswers(a => ({ ...a, [`${q.id}_${i}`]: o }))} /> <MathText as="span">{o}</MathText>
+                              <label key={j} className="opt-row">
+                                <input type="radio" name={`${q.id}_${i}`} checked={answers[`${q.id}_${i}`] === o} onChange={() => setAnswers(a => ({ ...a, [`${q.id}_${i}`]: o }))} />
+                                <InlineText>{o}</InlineText>
                               </label>
                             ))}
                           </div>
                         ) : (
-                          <textarea value={answers[`${q.id}_${i}`] || ''} onChange={e => setAnswers(a => ({ ...a, [`${q.id}_${i}`]: e.target.value }))} rows={2} style={{ width: '100%', marginTop: 4 }} placeholder="Write your answer..." />
+                          <textarea value={answers[`${q.id}_${i}`] || ''} onChange={e => setAnswers(a => ({ ...a, [`${q.id}_${i}`]: e.target.value }))} rows={2} style={{ marginTop: 4 }} placeholder="Write your answer…" />
                         )}
                       </div>
                     ))}
-                    <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                      <button onClick={() => submitQuiz(q)} disabled={sess.submitting} style={{ ...btn, opacity: sess.submitting ? 0.6 : 1 }}>{sess.submitting ? 'Submitting…' : 'Submit Attempt'}</button>
+                    <div className="toolbar" style={{ marginBottom: 0 }}>
+                      <button onClick={() => submitQuiz(q)} disabled={sess.submitting} className="btn btn-primary">{sess.submitting ? 'Submitting…' : 'Submit attempt'}</button>
                     </div>
                   </>
                 ) : (
-                  <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <button onClick={() => startQuiz(q)} disabled={maxed} style={{ ...btn, opacity: maxed ? 0.5 : 1 }} title={q.duration_minutes ? `You will have ${q.duration_minutes} minutes` : 'Start the quiz'}>
-                      {maxed ? 'No attempts left' : q.duration_minutes ? `Start Quiz (${q.duration_minutes} min)` : 'Start Quiz'}
+                  <div className="toolbar" style={{ marginBottom: 0 }}>
+                    <button onClick={() => startQuiz(q)} disabled={maxed} className="btn btn-primary" title={q.duration_minutes ? `You will have ${q.duration_minutes} minutes` : 'Start the quiz'}>
+                      {maxed ? 'No attempts left' : q.duration_minutes ? `Start quiz (${q.duration_minutes} min)` : 'Start quiz'}
                     </button>
-                    <button onClick={() => viewMyAttempts(q.id)} style={{ ...btn, background: 'var(--primary-dark)' }}>My Attempts</button>
+                    <button onClick={() => viewMyAttempts(q.id)} className="btn btn-ghost">My attempts</button>
                   </div>
                 )}
                 {(myAttempts[q.id] || []).map(at => (
-                  <div key={at.id} style={{ fontSize: 12, marginTop: 4, background: 'var(--mint)', padding: 6, borderRadius: 4 }}>
-                    Score: <b>{at.score}/{at.total}</b> • {new Date(at.submitted_at).toLocaleString()}
-                    {at.details.filter(d => d.needs_review).length > 0 && <span> • descriptive answers need teacher review</span>}
-                    <div style={{ marginTop: 4 }}><button onClick={() => viewFeedback(at.id)} style={{ background: 'var(--primary-dark)', color: 'white', border: 'none', padding: '2px 10px', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>Targeted Feedback</button></div>
+                  <div key={at.id} className="sub-card" style={{ marginTop: 8 }}>
+                    <div className="list-card-head">
+                      <span className={`score-chip${at.total ? (at.score / at.total >= 0.7 ? '' : at.score / at.total >= 0.4 ? ' mid' : ' low') : ''}`}>Score {at.score}/{at.total}</span>
+                      <span className="meta-line">{new Date(at.submitted_at).toLocaleString()}</span>
+                    </div>
+                    {at.details.filter(d => d.needs_review).length > 0 && <div className="meta-line">Descriptive answers need teacher review</div>}
+                    <div style={{ marginTop: 6 }}>
+                      <button onClick={() => viewFeedback(at.id)} className="btn btn-ghost btn-sm">Targeted feedback</button>
+                    </div>
                     {(feedback[at.id]?.items || []).map((fb, fi) => (
-                      <div key={fi} style={{ marginTop: 4, background: 'var(--card)', padding: 6, borderRadius: 8, borderLeft: fb.was_correct ? '3px solid var(--green)' : '3px solid var(--yellow-deep)' }}>
-                        <MathText as="span" style={{ fontWeight: 600 }}>{`Q${fb.question_no} (${fb.concept}): ${fb.was_correct ? '✅' : '❌'}`}</MathText>
-                        {!fb.was_correct && fb.study_pointer && <div style={{ marginTop: 2 }}>📖 {fb.study_pointer}</div>}
+                      <div key={fi} className={`fb-card${fb.was_correct ? ' ok' : ''}`}>
+                        <div className={`fb-head ${fb.was_correct ? 'ok' : 'bad'}`}>
+                          <Icon name={fb.was_correct ? 'check' : 'x'} /> Q{fb.question_no} ({fb.concept})
+                        </div>
+                        {!fb.was_correct && fb.study_pointer && (
+                          <div className="fb-pointer"><Icon name="book" />{fb.study_pointer}</div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -248,5 +302,3 @@ export default function StudentClassroom() {
     </div>
   )
 }
-const inp = {}
-const btn = { background: 'var(--primary)', color: 'white', border: 'none', padding: '9px 16px', borderRadius: 999, cursor: 'pointer', fontWeight: 600, fontSize: 13.5 }

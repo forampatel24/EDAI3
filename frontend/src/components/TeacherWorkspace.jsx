@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import api from '../api'
 import WorkspaceEditor from './WorkspaceEditor'
+import Icon from './Icon'
 
 const KINDS = [
   { value: 'lesson_plan', label: 'Lesson Plan' },
@@ -101,81 +102,157 @@ export default function TeacherWorkspace({ myCollections }) {
 
   return (
     <div className="card section-card">
-      <h3>Lessons &amp; assessments</h3>
-      <p className="card-sub">Pick a template or write a custom query. Generation is evidence-gated from your collection. Edit before saving; publish to classroom arrives in Phase 3.</p>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
-        <select value={kind} onChange={e => setKind(e.target.value)} style={inp}>
-          {KINDS.map(k => <option key={k.value} value={k.value}>{k.label}</option>)}
-        </select>
-        <select value={collectionId} onChange={e => setCollectionId(e.target.value)} style={{ ...inp, flex: 1 }}>
-          <option value="">Select Collection</option>
-          {(myCollections || []).map(c => <option key={c.id} value={c.id}>{c.name} ({c.subject})</option>)}
-        </select>
-        <select value={difficulty} onChange={e => setDifficulty(e.target.value)} style={inp}>
-          <option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option>
-        </select>
-      </div>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
-        <input placeholder="Topic (required)" value={topic} onChange={e => setTopic(e.target.value)} style={{ ...inp, flex: 2 }} />
-        <input placeholder="Title (optional)" value={title} onChange={e => setTitle(e.target.value)} style={{ ...inp, flex: 1 }} />
-      </div>
-      {(kind === 'lesson_plan' || kind === 'activity') && (
-        <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-          <input type="number" placeholder="Duration (min)" value={duration} onChange={e => setDuration(e.target.value)} style={inp} />
-          <input placeholder="Learning objectives (optional)" value={objectives} onChange={e => setObjectives(e.target.value)} style={{ ...inp, flex: 1 }} />
-        </div>
-      )}
-      {(kind === 'quiz' || kind === 'question_paper') && (
-        <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-          <input type="number" placeholder="No. of questions" value={numQuestions} onChange={e => setNumQuestions(e.target.value)} style={inp} />
-          <select value={questionType} onChange={e => setQuestionType(e.target.value)} style={inp}>
-            <option value="MCQ">MCQ</option><option value="descriptive">Descriptive</option><option value="mixed">Mixed</option>
-          </select>
-          <input placeholder="Objectives (optional)" value={objectives} onChange={e => setObjectives(e.target.value)} style={{ ...inp, flex: 1 }} />
-        </div>
-      )}
-      <textarea placeholder="Extra instructions or fully custom query (optional)" value={custom} onChange={e => setCustom(e.target.value)} rows={2} style={{ width: '100%' }} />
-      <div style={{ marginTop: 8 }}>
-        <button onClick={generate} disabled={loading} style={{ ...btn, opacity: loading ? 0.6 : 1 }}>{loading ? 'Generating...' : 'Generate (Evidence-Gated)'}</button>
-      </div>
-      {error && <div style={{ marginTop: 10, color: 'var(--red)', background: 'var(--pink-soft)', padding: 8, borderRadius: 6 }}>{error}</div>}
-      {msg && <div style={{ marginTop: 10, background: 'var(--mint)', padding: 8, borderRadius: 6, fontSize: 13 }}>{msg}</div>}
+      <h3>Lessons & assessments</h3>
+      <p className="card-sub">Pick a template or write a custom query. Generation is evidence-gated from your collection. Edit before saving, then publish to a classroom.</p>
 
-      {result && (
-        <div style={{ marginTop: 14, border: '1px solid var(--line)', borderRadius: 12, padding: 14, background: 'var(--paper)' }}>
-          {result.abstained
-            ? <div style={{ background: 'var(--blue-soft)', padding: 10, borderRadius: 6, border: '1px solid var(--blue-border)' }}>🛑 {result.warning || 'Insufficient evidence — abstained.'}</div>
-            : <>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
-                <b>{result.kind}</b>
-                <span style={{ fontSize: 12, color: 'var(--muted)' }}>Evidence: {result.evidence_status}{result.evidence_score != null ? ` (${result.evidence_score.toFixed(2)})` : ''}{result.repair_used ? ' • repaired' : ''}</span>
-                <span style={{ fontSize: 12, background: result.status === 'ready' ? 'var(--mint)' : 'var(--card)', padding: '2px 8px', borderRadius: 10 }}>{result.status}</span>
-              </div>
-              {result.warning && <div style={{ background: 'var(--yellow-soft)', padding: 8, borderRadius: 6, marginBottom: 8, fontSize: 13 }}>⚠️ {result.warning}</div>}
-              <WorkspaceEditor
-                key={result.id}
-                item={result}
-                saving={saving}
-                onSave={saveEdits}
-                onSaveToNotes={saveToNotes}
-                onPublish={publish}
-              />
-            </>}
-        </div>
-      )}
-
-      <h4>My Workspace Items ({items.length})</h4>
-      {items.length === 0 ? <div style={{ color: 'var(--faint)', fontSize: 13 }}>Nothing saved yet. Generate above.</div> :
-        items.map(it => (
-          <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 8, border: '1px solid var(--line)', borderRadius: 6, marginBottom: 6 }}>
-            <div style={{ cursor: 'pointer' }} onClick={() => selectItem(it)}>
-              <b>{it.title}</b> <span style={{ fontSize: 12, color: 'var(--muted)' }}>({it.kind} • {it.collection_name} • {it.status}{it.abstained ? ' • abstained' : ''})</span>
-            </div>
-            <button onClick={() => delItem(it.id)} style={{ background: 'var(--pink-soft)', color: 'var(--red)', fontWeight: 600, border: 'none', padding: '4px 12px', borderRadius: 999, cursor: 'pointer', fontSize: 12 }}>Delete</button>
+      {/* Split Dashboard */}
+      <div className="bento-grid-2" style={{ marginBottom: 20 }}>
+        {/* Left Panel - Generator */}
+        <div className="glass-card" style={{ padding: 22, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="toolbar" style={{ flexWrap: 'wrap', gap: 12 }}>
+            <label className="field w-170">
+              <span className="field-label">Template</span>
+              <select value={kind} onChange={e => setKind(e.target.value)}>
+                {KINDS.map(k => <option key={k.value} value={k.value}>{k.label}</option>)}
+              </select>
+            </label>
+            <label className="field">
+              <span className="field-label">Collection</span>
+              <select value={collectionId} onChange={e => setCollectionId(e.target.value)}>
+                <option value="">Select collection</option>
+                {(myCollections || []).map(c => <option key={c.id} value={c.id}>{c.name} ({c.subject})</option>)}
+              </select>
+            </label>
+            <label className="field w-130">
+              <span className="field-label">Difficulty</span>
+              <select value={difficulty} onChange={e => setDifficulty(e.target.value)}>
+                <option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option>
+              </select>
+            </label>
           </div>
-        ))}
+
+          <div className="toolbar" style={{ flexWrap: 'wrap', gap: 12 }}>
+            <label className="field" style={{ flex: 1, minWidth: 200 }}>
+              <span className="field-label">Topic (required)</span>
+              <input placeholder="e.g., Newton's laws of motion" value={topic} onChange={e => setTopic(e.target.value)} />
+            </label>
+            <label className="field" style={{ flex: 1, minWidth: 200 }}>
+              <span className="field-label">Title (optional)</span>
+              <input placeholder="Title" value={title} onChange={e => setTitle(e.target.value)} />
+            </label>
+          </div>
+
+          {(kind === 'lesson_plan' || kind === 'activity') && (
+            <div className="toolbar" style={{ flexWrap: 'wrap', gap: 12 }}>
+              <label className="field w-130">
+                <span className="field-label">Duration (min)</span>
+                <input type="number" value={duration} onChange={e => setDuration(e.target.value)} />
+              </label>
+              <label className="field" style={{ flex: 1, minWidth: 200 }}>
+                <span className="field-label">Learning objectives (optional)</span>
+                <input placeholder="What should students learn?" value={objectives} onChange={e => setObjectives(e.target.value)} />
+              </label>
+            </div>
+          )}
+
+          {(kind === 'quiz' || kind === 'question_paper') && (
+            <div className="toolbar" style={{ flexWrap: 'wrap', gap: 12 }}>
+              <label className="field w-130">
+                <span className="field-label">Questions</span>
+                <input type="number" value={numQuestions} onChange={e => setNumQuestions(e.target.value)} />
+              </label>
+              <label className="field w-130">
+                <span className="field-label">Question type</span>
+                <select value={questionType} onChange={e => setQuestionType(e.target.value)}>
+                  <option value="MCQ">MCQ</option><option value="descriptive">Descriptive</option><option value="mixed">Mixed</option>
+                </select>
+              </label>
+              <label className="field" style={{ flex: 1, minWidth: 200 }}>
+                <span className="field-label">Objectives (optional)</span>
+                <input placeholder="Objectives" value={objectives} onChange={e => setObjectives(e.target.value)} />
+              </label>
+            </div>
+          )}
+
+          <label className="field" style={{ marginBottom: 10 }}>
+            <span className="field-label">Extra instructions or fully custom query</span>
+            <textarea placeholder="Optional — e.g., focus on real-world applications" value={custom} onChange={e => setCustom(e.target.value)} rows={2} />
+          </label>
+
+          <button onClick={generate} disabled={loading} className="btn btn-primary btn-block">
+            {loading ? <><span className="spin" aria-hidden="true" /> Generating…</> : <><Icon name="sparkles" /> Generate (evidence-gated)</>}
+          </button>
+
+          {error && <div className="banner banner-bad" style={{ marginTop: 12 }}><Icon name="alert" /><span>{error}</span></div>}
+          {msg && <div className="banner banner-ok" style={{ marginTop: 12 }}><Icon name="check" /><span>{msg}</span></div>}
+        </div>
+
+        {/* Right Panel - Result Preview */}
+        <div className="glass-card" style={{ padding: 22, display: 'flex', flexDirection: 'column', minHeight: 420 }}>
+          {result && (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+              {result.abstained ? (
+                <div className="banner banner-info"><Icon name="shield" /><span>{result.warning || 'Insufficient evidence — abstained.'}</span></div>
+              ) : (
+                <>
+                  <div className="ground-pills" style={{ marginBottom: 10 }}>
+                    <span className="pill pill-info"><Icon name="file" />{labelForKind(result.kind)}</span>
+                    <span className={`pill ${result.evidence_status === 'sufficient' ? 'pill-ok' : 'pill-warn'}`}>
+                      <Icon name="target" />Evidence: {result.evidence_status}{result.evidence_score != null ? ` (${result.evidence_score.toFixed(2)})` : ''}
+                    </span>
+                    {result.repair_used && <span className="pill pill-info"><Icon name="wrench" />Repaired</span>}
+                    <span className={`pill ${result.status === 'ready' ? 'pill-ok' : 'pill-muted'}`}>{result.status}</span>
+                  </div>
+                  {result.warning && <div className="banner banner-warn"><Icon name="alert" /><span>{result.warning}</span></div>}
+                  <WorkspaceEditor
+                    key={result.id}
+                    item={result}
+                    saving={saving}
+                    onSave={saveEdits}
+                    onSaveToNotes={saveToNotes}
+                    onPublish={publish}
+                  />
+                </>
+              )}
+            </div>
+          )}
+
+          {!result && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, textAlign: 'center', color: 'var(--muted)', gap: 12 }}>
+              <Icon name="folder" size={48} style={{ opacity: 0.3 }} />
+              <p style={{ fontSize: 15 }}>Generate a lesson or quiz to see the editable preview here.</p>
+              <p style={{ fontSize: 13, maxWidth: 280 }}>Edit content, save changes, and publish directly to your classroom.</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <h4 style={{ marginTop: 20 }}>My workspace items ({items.length})</h4>
+      {items.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-ico"><Icon name="folder" /></div>
+          <div className="empty-title">Nothing saved yet</div>
+          <div className="empty-text">Generate a lesson or quiz above to build your workspace.</div>
+        </div>
+      ) : (
+        items.map(it => (
+          <div key={it.id} className="list-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+            <div style={{ cursor: 'pointer', minWidth: 0 }} onClick={() => selectItem(it)}>
+              <b>{it.title}</b>
+              <div className="meta-line">
+                {labelForKind(it.kind)} <span className="dot">·</span> {it.collection_name} <span className="dot">·</span> {it.status}
+                {it.abstained && <> <span className="dot">·</span> abstained</>}
+              </div>
+            </div>
+            <button onClick={() => delItem(it.id)} className="btn-tiny btn-danger" style={{ flexShrink: 0 }}>Delete</button>
+          </div>
+        ))
+      )}
     </div>
   )
 }
-const inp = {}
-const btn = { background: 'var(--primary)', color: 'white', border: 'none', padding: '9px 16px', borderRadius: 999, cursor: 'pointer', fontWeight: 600, fontSize: 13.5 }
+
+function labelForKind(kind) {
+  const found = KINDS.find(k => k.value === kind)
+  return found ? found.label : kind
+}

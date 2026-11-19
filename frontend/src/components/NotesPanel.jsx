@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import api from '../api'
 import NoteEditor from './NoteEditor'
+import Icon from './Icon'
 
 export default function NotesPanel() {
   const [folders, setFolders] = useState([])
@@ -131,110 +132,96 @@ export default function NotesPanel() {
 
   return (
     <div className="card section-card" style={{ position: 'relative' }}>
-      <h3>Personalized notes</h3>
-      <p className="card-sub" style={{ marginBottom: 12 }}>
-        Save useful AI answers once, revisit before exams. Sources stay attached to every note.
-      </p>
-
-      {msg && (
-        <div style={{ background: 'var(--mint)', border: '1px solid var(--mint-border)', padding: 8, borderRadius: 8, fontSize: 13, marginBottom: 8 }}>
-          {msg}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
+        <div>
+          <h3>Personalized notes</h3>
+          <p className="card-sub" style={{ marginBottom: 12 }}>
+            Save useful AI answers once, revisit before exams. Sources stay attached to every note.
+          </p>
         </div>
-      )}
-
-      <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
-        <input
-          placeholder="New folder e.g., Physics Revision"
-          value={newFolder}
-          onChange={e => setNewFolder(e.target.value)}
-          style={{ ...inp, flex: 1 }}
-        />
-        <button onClick={addFolder} style={btn}>Add Folder</button>
       </div>
 
-      <div className="notes-grid">
-        <div style={{ minWidth: 260, maxWidth: 320, flexShrink: 0 }}>
-          <h5>Folders</h5>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      {msg && <div className="banner banner-ok"><Icon name="check" /><span>{msg}</span></div>}
+
+      <div className="toolbar" style={{ marginBottom: 16 }}>
+        <label className="field" style={{ flex: 1, minWidth: 220 }}>
+          <span className="field-label">New folder</span>
+          <input
+            placeholder="e.g., Physics Revision"
+            value={newFolder}
+            onChange={e => setNewFolder(e.target.value)}
+          />
+        </label>
+        <button onClick={addFolder} className="btn btn-primary">Add folder</button>
+      </div>
+
+      <div className="notes-grid" style={{ gap: 20 }}>
+        {/* Folders Sidebar */}
+        <div style={{ minWidth: 280, maxWidth: 340, flexShrink: 0 }}>
+          <h5 style={{ marginBottom: 12, color: 'var(--ink)' }}>Folders</h5>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <button
               onClick={() => setFolderFilter('')}
-              style={{
-                ...folderChipStyle,
-                background: folderFilter === '' ? 'var(--primary)' : 'var(--card)',
-                color: folderFilter === '' ? 'white' : 'var(--ink)',
-                borderColor: folderFilter === '' ? 'var(--primary)' : 'var(--line)',
-              }}
+              className={`folder-chip${folderFilter === '' ? ' active' : ''}`}
             >
-              <span>📂 All notes</span>
-              <span style={{ fontSize: 11, opacity: 0.8 }}>{notes.length}</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><Icon name="layers" size={16} /> All notes</span>
+              <span className="count">{notes.length}</span>
             </button>
             <button
               onClick={() => setFolderFilter('__none__')}
-              style={{
-                ...folderChipStyle,
-                background: folderFilter === '__none__' ? 'var(--yellow-soft)' : 'var(--card)',
-                color: folderFilter === '__none__' ? 'var(--yellow-ink)' : 'var(--ink)',
-                borderColor: folderFilter === '__none__' ? 'var(--yellow-border)' : 'var(--line)',
-              }}
+              className={`folder-chip muted${folderFilter === '__none__' ? ' active' : ''}`}
             >
-              <span>📄 No folder</span>
-              <span style={{ fontSize: 11, opacity: 0.8 }}>
-                {notes.filter((n) => !n.folder_id).length}
-              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><Icon name="file" size={16} /> No folder</span>
+              <span className="count">{notes.filter((n) => !n.folder_id).length}</span>
             </button>
             {folders.map((f) => (
               <button
                 key={f.id}
                 onClick={() => setFolderFilter(String(f.id))}
-                style={{
-                  ...folderChipStyle,
-                  background: folderFilter === String(f.id) ? 'var(--blue-soft)' : 'var(--card)',
-                  color: folderFilter === String(f.id) ? 'var(--primary-dark)' : 'var(--ink)',
-                  borderColor: folderFilter === String(f.id) ? 'var(--blue-border)' : 'var(--line)',
-                }}
+                className={`folder-chip${folderFilter === String(f.id) ? ' active' : ''}`}
               >
-                <span>📁 {f.name}</span>
-                <span style={{ fontSize: 11, opacity: 0.8 }}>{f.note_count}</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><Icon name="folder" size={16} /> {f.name}</span>
+                <span className="count">{f.note_count}</span>
               </button>
             ))}
           </div>
         </div>
 
+        {/* Notes List */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <h5>Notes ({notes.length})</h5>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <h5>Notes ({notes.length})</h5>
+          </div>
           {notes.length === 0 ? (
-            <div style={{ color: 'var(--faint)', fontSize: 13, padding: 20, textAlign: 'center' }}>
-              {folderFilter ? 'No notes in this folder.' : 'No notes yet. Generate content, then Save as Note.'}
+            <div className="empty-state">
+              <div className="empty-ico"><Icon name="edit" /></div>
+              <div className="empty-title">{folderFilter ? 'Nothing in this folder' : 'No notes yet'}</div>
+              <div className="empty-text">{folderFilter ? 'Move a note here from its ⋯ menu.' : 'Generate content, then choose Save as note.'}</div>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {notes.map((n) => (
                 <div
                   key={n.id}
                   onContextMenu={(e) => openMenu(e, n)}
                   onClick={() => startEdit(n)}
-                  className="note-row"
-                  style={{
-                    ...noteRowStyle,
-                    borderColor: editing?.id === n.id ? 'var(--primary)' : 'var(--line)',
-                    background: editing?.id === n.id ? 'var(--blue-soft)' : 'var(--card)',
-                  }}
+                  className={`note-row${editing?.id === n.id ? ' active' : ''}`}
                 >
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {n.title}
                     </div>
-                    <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
-                      {n.folder_name ? `📁 ${n.folder_name}` : '📄 No folder'}
-                      {n.collection_name && ` • ${n.collection_name}`}
-                      {` • ${n.source_type}`}
+                    <div className="meta-line" style={{ marginTop: 4 }}>
+                      <Icon name={n.folder_name ? 'folder' : 'file'} size={12} />
+                      {n.folder_name || 'No folder'}
+                      {n.collection_name && <> <span className="dot">•</span> {n.collection_name}</>}
+                      <span className="dot">•</span> {n.source_type}
                     </div>
                   </div>
                   <button
                     className="note-more"
                     onClick={(e) => openMenuButton(e, n)}
                     aria-label="More actions"
-                    style={noteMoreStyle}
                   >
                     ⋯
                   </button>
@@ -247,62 +234,33 @@ export default function NotesPanel() {
 
       {/* Context menu for move/delete */}
       {menu && (
-        <div
-          style={{
-            position: 'fixed',
-            left: menu.x,
-            top: menu.y,
-            zIndex: 1000,
-            background: 'var(--card)',
-            border: '1px solid var(--line-strong)',
-            borderRadius: 10,
-            boxShadow: 'var(--shadow)',
-            minWidth: 200,
-            padding: '6px 0',
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div
-            onClick={() => { startEdit(menu.note); setMenu(null) }}
-            style={menuItemStyle}
-          >
-            ✏️ Edit
+        <div className="note-menu" style={{ left: menu.x, top: menu.y }} onClick={(e) => e.stopPropagation()}>
+          <div className="note-menu-item" onClick={() => { startEdit(menu.note); setMenu(null) }}>
+            <Icon name="edit" /> Edit
           </div>
-          <div style={{ padding: '4px 12px', fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase' }}>
-            Move to folder
-          </div>
+          <div className="note-menu-label">Move to folder</div>
           {folders.map((f) => (
-            <div
-              key={f.id}
-              onClick={() => moveTo(menu.note, f.id)}
-              style={menuItemStyle}
-            >
-              📁 {f.name}
+            <div key={f.id} className="note-menu-item" onClick={() => moveTo(menu.note, f.id)}>
+              <Icon name="folder" /> {f.name}
             </div>
           ))}
-          <div
-            onClick={() => moveTo(menu.note, null)}
-            style={menuItemStyle}
-          >
-            📄 No folder
+          <div className="note-menu-item" onClick={() => moveTo(menu.note, null)}>
+            <Icon name="file" /> No folder
           </div>
-          <hr style={{ border: 'none', borderTop: '1px solid var(--line)', margin: '6px 0' }} />
-          <div
-            onClick={() => delNote(menu.note)}
-            style={{ ...menuItemStyle, color: 'var(--red)' }}
-          >
-            🗑 Delete
+          <div className="rt-hr" />
+          <div className="note-menu-item danger" onClick={() => delNote(menu.note)}>
+            <Icon name="trash" /> Delete
           </div>
         </div>
       )}
 
       {/* Edit Modal */}
       {editing && (
-        <div className="modal-overlay" onClick={cancelEdit} style={overlayStyle}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={modalStyle}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <h4 style={{ margin: 0 }}>Edit Note</h4>
-              <button onClick={cancelEdit} style={closeBtn} aria-label="Close">✕</button>
+        <div className="modal-overlay" onClick={cancelEdit}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 800 }}>
+            <div className="modal-head">
+              <h4>Edit note</h4>
+              <button onClick={cancelEdit} className="icon-btn" aria-label="Close"><Icon name="x" /></button>
             </div>
             <NoteEditor
               note={editing}
@@ -317,13 +275,3 @@ export default function NotesPanel() {
     </div>
   )
 }
-
-const inp = { padding: '9px 12px', borderRadius: 10, border: '1px solid var(--line-strong)', background: 'var(--card)', color: 'var(--ink)', fontSize: 13.5 }
-const btn = { background: 'var(--primary)', color: 'white', border: 'none', padding: '9px 16px', borderRadius: 999, cursor: 'pointer', fontWeight: 600, fontSize: 13.5 }
-const folderChipStyle = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', border: '1px solid', borderRadius: 10, cursor: 'pointer', fontSize: 13, textAlign: 'left', width: '100%' }
-const noteRowStyle = { display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', border: '1px solid', borderRadius: 10, cursor: 'pointer', transition: 'background 0.1s, border-color 0.1s' }
-const noteMoreStyle = { opacity: 0, background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: 4, color: 'var(--muted)', transition: 'opacity 0.15s' }
-const menuItemStyle = { padding: '8px 14px', fontSize: 13, cursor: 'pointer', color: 'var(--ink)' }
-const overlayStyle = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 1001, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }
-const modalStyle = { background: 'var(--card)', border: '1px solid var(--line-strong)', borderRadius: 14, boxShadow: 'var(--shadow)', width: '100%', maxWidth: 720, maxHeight: '90vh', overflow: 'auto' }
-const closeBtn = { background: 'transparent', border: 'none', fontSize: 18, cursor: 'pointer', color: 'var(--muted)', lineHeight: 1, padding: 4 }
